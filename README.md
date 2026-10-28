@@ -22,7 +22,7 @@ Setup 固定子模块和 SCons，并以官方 SHA512 校验 Godot。测试先运
 - `src/core`：不依赖 Godot 的状态机和 1200 秒生存计时器。
 - `src/gameplay`：原生节点注册、启动 UI 与集成测试。
 - `tests/unit`、`tests/simulation`：状态、计时和加速 20 分钟计时模拟；完整战斗模拟尚待 Phase 1。
-- `.github/workflows/verify.yml`：PR/推送触发 Linux 构建、单测及 Godot Headless；Windows 已在本机测试。
+- `.github/workflows/verify.yml`：PR/推送触发 Windows 构建、单测及 Godot Headless；当前只验收 Windows。
 - `docs/ARCHITECTURE.md`、`docs/VALIDATION.md`：架构与验收证据。
 - `orchestration`：任务队列、路由、预算、阻塞与交接。
 

@@ -15,11 +15,11 @@
     "deepseek_availability_probe"
   ],
   "unverified": [
-    "linux_ci_integration",
-    "provider_runner_and_budget_enforcement"
+    "windows_ci",
+    "phase1_gameplay"
   ],
-  "next": "Claude Sonnet: diagnose Linux engine import crash with baseline comparison, then PR and orchestration budget gate",
-  "reason": "Claude official Haiku and Sonnet restored; DeepSeek file workflow verified. Linux CI import exit134 requires fresh diagnosis by Sonnet.",
+  "next": "Finish Windows CI with explicitly pinned hosted compiler, then Phase 1 character movement",
+  "reason": "User explicitly scoped current acceptance to Windows only. Linux is deferred, not a blocker.",
   "tests": "22 GoogleTest PASS; Windows Headless PASS; Linux build PASS, import exit134",
   "workspace": "E:/AI Survior/ai_survivor"
 }

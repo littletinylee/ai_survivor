@@ -5,11 +5,9 @@ on:
 permissions:
   contents: read
 jobs:
-  linux:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    env:
-      CXX: g++-13
+  windows:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -17,29 +15,41 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11.9'
-      - run: python -m pip install -r tools/requirements.txt
+      - name: Install SCons and pinned Godot
+        shell: pwsh
+        run: ./tools/setup.ps1
       - name: Bounded runner tests (no model calls)
         run: python -m unittest discover -s tests/integration -p test_project_runner.py -v
-      - name: Download and verify pinned Godot
-        shell: bash
+      - name: Provider routing tests (offline)
+        shell: pwsh
+        run: ./tests/integration/provider-routing.ps1
+      - name: Toolchain inventory
+        shell: pwsh
         run: |
-          set -euo pipefail
-          mkdir -p .tools
-          touch .tools/.gdignore
-          cd .tools
-          base=https://github.com/godotengine/godot/releases/download/4.7.2-stable
-          asset=Godot_v4.7.2-stable_linux.x86_64.zip
-          curl --fail --location "$base/$asset" -o "$asset"
-          curl --fail --location "$base/SHA512-SUMS.txt" -o SHA512-SUMS.txt
-          grep "  $asset$" SHA512-SUMS.txt | sha512sum --check --strict
-          unzip "$asset"
-          chmod +x Godot_v4.7.2-stable_linux.x86_64
-      - run: python -m SCons platform=linux arch=x86_64 target=template_debug -j2
+          $required = '14.50.35717'
+          try {
+            $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+            if (!(Test-Path $vswhere)) { throw "vswhere not found at $vswhere" }
+            $vs = & $vswhere -latest -products * -property installationPath
+            if (!$vs) { throw 'vswhere found no Visual Studio installation' }
+            $msvcRoot = Join-Path $vs 'VC/Tools/MSVC'
+            $names = @(Get-ChildItem $msvcRoot -Directory | ForEach-Object { $_.Name })
+            Write-Host "::notice::installed MSVC=$($names -join ',')"
+            if ($names -notcontains $required) {
+              throw "Required pinned MSVC $required is missing; installed: $($names -join ',')"
+            }
+          } catch {
+            Write-Host "::error::$($_.Exception.Message)"
+            throw
+          }
+      - name: Build
+        shell: pwsh
+        run: ./tools/build.ps1 -Jobs 4
       - name: Unit and headless integration
         shell: pwsh
         run: |
           try {
-            ./tools/test.ps1 -Godot ./.tools/Godot_v4.7.2-stable_linux.x86_64
+            ./tools/test.ps1
           } catch {
             Write-Host "::error::$($_.Exception.Message)"
             Get-ChildItem build/test-results -Filter '*.log' | ForEach-Object {

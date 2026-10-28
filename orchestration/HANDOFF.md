@@ -13,3 +13,5 @@ Claude 先前 403，禁止循环重试；DeepSeek deepseek-flash 探针成功但
 Subrouter备用已接通（用户确认Key后台每日100CNY硬限额）。Claude Code及Codex CLI走中转均READY。tools/claude-task.ps1和tools/codex-task.ps1默认auto，仅额度事件切换一次、认证/预算错误停止。tools/codex-subrouter.ps1为直接中转入口。独立CLI可按CONTINUE_TASK.md继续，但没有创建常驻/无限循环；不能自动替换桌面chat运行中的provider。密钥仅在gitignored本机文件，禁止读出或提交。
 
 持续推进入口已建立：tools/project_runner.py run/status/stop。12项runner离线测试通过；单实例锁，默认最多6周期/4小时，每周期15分钟，失败/无进展/STOP立即退出。启动后父聊天只能读取本工作树，避免与独立Codex控制器同时写入。首次仅启动1周期实测，外部进程日志和心跳见orchestration/local/runner。
+
+优先级覆盖：用户要求当前仅Windows，停止Linux排障。独立运行器首轮已terminal agent_stop且PID不存在，当前Goal接管；下一任务打通WindowsCI然后Phase1，不得重启Linux排障。
