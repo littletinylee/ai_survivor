@@ -190,4 +190,18 @@ TEST(GameTimerTest, RestartRejectedOutsideTerminal) {
     EXPECT_DOUBLE_EQ(timer.elapsed_seconds(), 25.0);
 }
 
+TEST(GameTimerTest, DeathFreezesClockAndRestartClearsElapsedTime) {
+    GameStateManager states;
+    GameTimer timer(states);
+    ASSERT_TRUE(states.start_run());
+    ASSERT_EQ(timer.advance(42.0), AdvanceResult::kAdvanced);
+    ASSERT_TRUE(states.lose());
+    EXPECT_EQ(timer.advance(1200.0), AdvanceResult::kFrozen);
+    EXPECT_DOUBLE_EQ(timer.elapsed_seconds(), 42.0);
+    EXPECT_FALSE(timer.win_reached());
+    ASSERT_TRUE(timer.restart());
+    EXPECT_DOUBLE_EQ(timer.elapsed_seconds(), 0.0);
+    EXPECT_EQ(states.state(), GameState::kMenu);
+}
+
 } // namespace

@@ -59,7 +59,7 @@ bool GameStateManager::transition_to(GameState next) {
 }
 
 bool GameStateManager::start_run() {
-    return transition_to(GameState::kPlaying);
+    return state_ == GameState::kMenu && transition_to(GameState::kPlaying);
 }
 
 bool GameStateManager::pause() {
@@ -67,7 +67,7 @@ bool GameStateManager::pause() {
 }
 
 bool GameStateManager::resume() {
-    return transition_to(GameState::kPlaying);
+    return state_ == GameState::kPaused && transition_to(GameState::kPlaying);
 }
 
 bool GameStateManager::begin_upgrade() {
@@ -75,7 +75,7 @@ bool GameStateManager::begin_upgrade() {
 }
 
 bool GameStateManager::complete_upgrade() {
-    return transition_to(GameState::kPlaying);
+    return state_ == GameState::kUpgrade && transition_to(GameState::kPlaying);
 }
 
 bool GameStateManager::win() {

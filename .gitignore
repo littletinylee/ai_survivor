@@ -16,3 +16,4 @@ orchestration/local/
 *.log
 
 orchestration/local-implementation-result.txt
+*.obj.import

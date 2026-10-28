@@ -3,7 +3,7 @@
 #include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/core/memory.hpp>
-#include <godot_cpp/core/print_string.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/variant/color.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
 #include <godot_cpp/variant/string_name.hpp>
@@ -40,8 +40,8 @@ void AISurvivorsBootstrap::build_ui() {
 
     Label *label = memnew(Label);
     label->set_name("NativeStatusLabel");
-    label->set_horizontal_alignment(HORIZONTAL_ALIGNMENT_CENTER);
-    label->set_vertical_alignment(VERTICAL_ALIGNMENT_CENTER);
+    label->set_horizontal_alignment(godot::HORIZONTAL_ALIGNMENT_CENTER);
+    label->set_vertical_alignment(godot::VERTICAL_ALIGNMENT_CENTER);
     label->add_theme_font_size_override("font_size", 30);
     label->add_theme_color_override("font_color",
                                     Color(0.90f, 0.95f, 1.0f, 1.0f));
@@ -61,7 +61,7 @@ void AISurvivorsBootstrap::build_ui() {
 
 bool AISurvivorsBootstrap::run_core_checks() {
     const auto fail = [](const char *detail) {
-        godot::print(String("AI_SURVIVORS_INTEGRATION_FAILED: ") +
+        godot::UtilityFunctions::print(String("AI_SURVIVORS_INTEGRATION_FAILED: ") +
                      String(detail));
         return false;
     };
@@ -175,7 +175,7 @@ void AISurvivorsBootstrap::_ready() {
     }
 
     if (get_class() != StringName("AISurvivorsBootstrap")) {
-        godot::print("AI_SURVIVORS_INTEGRATION_FAILED: native class mismatch");
+        godot::UtilityFunctions::print("AI_SURVIVORS_INTEGRATION_FAILED: native class mismatch");
         get_tree()->quit(1);
         return;
     }
@@ -185,12 +185,12 @@ void AISurvivorsBootstrap::_ready() {
     }
     if (status_label_ == nullptr || !status_label_->is_inside_tree() ||
         status_label_->get_text().length() == 0) {
-        godot::print("AI_SURVIVORS_INTEGRATION_FAILED: native label UI missing");
+        godot::UtilityFunctions::print("AI_SURVIVORS_INTEGRATION_FAILED: native label UI missing");
         get_tree()->quit(1);
         return;
     }
 
-    godot::print("AI_SURVIVORS_INTEGRATION_OK");
+    godot::UtilityFunctions::print("AI_SURVIVORS_INTEGRATION_OK");
     get_tree()->quit(0);
 }
 

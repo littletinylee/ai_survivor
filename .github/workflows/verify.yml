@@ -1,0 +1,43 @@
+name: Native build and integration
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CXX: g++-13
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11.9'
+      - run: python -m pip install -r tools/requirements.txt
+      - name: Download and verify pinned Godot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .tools
+          touch .tools/.gdignore
+          cd .tools
+          base=https://github.com/godotengine/godot/releases/download/4.7.2-stable
+          asset=Godot_v4.7.2-stable_linux.x86_64.zip
+          curl --fail --location "$base/$asset" -o "$asset"
+          curl --fail --location "$base/SHA512-SUMS.txt" -o SHA512-SUMS.txt
+          grep "  $asset$" SHA512-SUMS.txt | sha512sum --check --strict
+          unzip "$asset"
+          chmod +x Godot_v4.7.2-stable_linux.x86_64
+      - run: python -m SCons platform=linux arch=x86_64 target=template_debug -j2
+      - name: Unit and headless integration
+        shell: pwsh
+        run: ./tools/test.ps1 -Godot ./.tools/Godot_v4.7.2-stable_linux.x86_64
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: build/test-results/
