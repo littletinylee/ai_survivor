@@ -15,3 +15,5 @@ Subrouter备用已接通（用户确认Key后台每日100CNY硬限额）。Claud
 持续推进入口已建立：tools/project_runner.py run/status/stop。12项runner离线测试通过；单实例锁，默认最多6周期/4小时，每周期15分钟，失败/无进展/STOP立即退出。启动后父聊天只能读取本工作树，避免与独立Codex控制器同时写入。首次仅启动1周期实测，外部进程日志和心跳见orchestration/local/runner。
 
 优先级覆盖：用户要求当前仅Windows，停止Linux排障。独立运行器首轮已terminal agent_stop且PID不存在，当前Goal接管；下一任务打通WindowsCI然后Phase1，不得重启Linux排障。
+
+Phase1-01本机已验收（32测试+Headless+4截图），云端WindowsCI待确认；代码角色/移动/菜单已接入，禁止声称完整游戏。下一步P1-02自动攻击、追击敌人、伤害死亡。CI工具集14.51.36231按库存显式锁定，本机仍14.50.35717。

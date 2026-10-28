@@ -1,12 +1,20 @@
 import os
-from SCons.Script import ARGUMENTS, Alias, Default, Environment, Glob, SConscript
+import json
+from SCons.Script import ARGUMENTS, Alias, Default, Environment, Glob, SConscript, Exit
 
 ARGUMENTS.setdefault('custom_api_file', os.path.abspath('tools/extension_api-4.7.2.json'))
 ARGUMENTS.setdefault('build_profile', os.path.abspath('tools/build_profile.json'))
 ARGUMENTS.setdefault('target', 'template_debug')
 os.makedirs('build', exist_ok=True)
 open('build/.gdignore', 'a').close()
-toolchain = {'MSVC_TOOLSET_VERSION': '14.50.35717'} if os.name == 'nt' else {'CXX': 'g++-13'}
+with open('tools/toolchain-lock.json', encoding='utf-8') as f:
+    lock = json.load(f)
+selected_toolset = ARGUMENTS.pop('msvc_toolset', lock['windows_local']['msvc_toolset'])
+allowed_toolsets = {lock['windows_local']['msvc_toolset'], lock['windows_ci']['msvc_toolset']}
+if os.name == 'nt' and selected_toolset not in allowed_toolsets:
+    print('MSVC toolset is not in tools/toolchain-lock.json: ' + selected_toolset)
+    Exit(2)
+toolchain = {'MSVC_TOOLSET_VERSION': selected_toolset} if os.name == 'nt' else {'CXX': 'g++-13'}
 binding_env = Environment(tools=['default'], PLATFORM='', **toolchain)
 env = SConscript('godot-cpp/SConstruct', exports={'env': binding_env})
 env.Append(CPPPATH=['src'])

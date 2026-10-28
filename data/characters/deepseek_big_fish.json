@@ -1,0 +1,19 @@
+{
+  "id": "deepseek_big_fish",
+  "name": "DeepSeek 大肥鱼",
+  "description": "一条圆滚滚的蓝色大鱼，皮厚血多，游得又稳又快。",
+  "portrait_asset": "",
+  "sprite_asset": "",
+  "animation_asset": "",
+  "max_hp": 100,
+  "move_speed": 220,
+  "armor": 0,
+  "damage_multiplier": 1.0,
+  "attack_speed_multiplier": 1.0,
+  "crit_chance": 0.05,
+  "xp_multiplier": 1.0,
+  "pickup_radius": 80,
+  "initial_weapon_id": "bubble_shot",
+  "passive_id": "deep_dive",
+  "passive_description": "深潜：占位被动，尚未实现任何效果。"
+}

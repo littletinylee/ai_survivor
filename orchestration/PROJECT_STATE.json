@@ -18,8 +18,8 @@
     "windows_ci",
     "phase1_gameplay"
   ],
-  "next": "Finish Windows CI with explicitly pinned hosted compiler, then Phase 1 character movement",
+  "next": "Verify pinned Windows CI, then implement P1-02 enemy pursuit and automatic projectile combat",
   "reason": "User explicitly scoped current acceptance to Windows only. Linux is deferred, not a blocker.",
-  "tests": "22 GoogleTest PASS; Windows Headless PASS; Linux build PASS, import exit134",
+  "tests": "Windows build PASS; 32 GoogleTest PASS; native Headless PASS; menu/select/battle/pause screenshots inspected; hosted Windows CI pending",
   "workspace": "E:/AI Survior/ai_survivor"
 }

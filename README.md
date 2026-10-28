@@ -1,6 +1,6 @@
 # AI幸存者 / AI Survivors
 
-原创 2D Roguelite 生存游戏。当前为 Phase 0：C++ 状态/计时核心、原生 GDExtension 启动场景和自动测试，尚未实现战斗。
+原创 2D Roguelite 生存游戏。当前支持主菜单、数据驱动的角色选择、WASD/方向键移动、Esc 暂停和重开。战斗与经验系统仍在开发。
 
 正式工作目录：`E:\AI Survior\ai_survivor`。父目录为早期断点副本，后续在本克隆继续。
 
@@ -21,6 +21,7 @@ Setup 固定子模块和 SCons，并以官方 SHA512 校验 Godot。测试先运
 
 - `src/core`：不依赖 Godot 的状态机和 1200 秒生存计时器。
 - `src/gameplay`：原生节点注册、启动 UI 与集成测试。
+- `data/characters/*.json`：角色配置，加载时校验字段、属性与唯一 ID；空美术字段表示程序图形占位。
 - `tests/unit`、`tests/simulation`：状态、计时和加速 20 分钟计时模拟；完整战斗模拟尚待 Phase 1。
 - `.github/workflows/verify.yml`：PR/推送触发 Windows 构建、单测及 Godot Headless；当前只验收 Windows。
 - `docs/ARCHITECTURE.md`、`docs/VALIDATION.md`：架构与验收证据。

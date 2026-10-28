@@ -15,3 +15,6 @@ CI 结果待补充。当前模拟仅验证计时/状态，尚不验证战斗、�
 `nDeepSeek 实任务验收：session-e8475b0d-db97-40cc-a112-10446469f451，CLI exit 0，仅文件工具修改 tools/test.ps1 并交回；Codex 复验 21 tests PASS、Headless marker PASS。Claude 官方隔离探针 Not logged in，cost 0 USD，等待用户 OAuth。
 
 Claude 官方通道验证：Haiku5.5 探针 READY，Haiku 真实读写任务退出0、无权限拒绝，新增 CommandsCannotSubstituteForEachOther；本地编译、22单测及Headless PASS。Sonnet5.5探针 READY。三次调用 CLI列表价格估算合计 USD 0.01999685（Pro订阅，非已确认现金扣费）；DeepSeek费用未知。
+
+2026-10-29 Phase1-01：Sonnet实现CharacterDefinition/Registry、PlayerController、JSON角色加载、菜单/选择/战场/暂停；Codex审查修复UTF-8显示并增加滚动角色列表。Windows本机编译通过，32项GoogleTest和原生Headless集成通过。menu/select/battle/pause四张1100x680自动截图已检查，中文清晰、按钮无裁切、鱼形原创占位正常。当前无战斗/敌人/经验。
+WindowsCI编译器库存实际证据run40767419942：14.29.30133、14.44.35207、14.51.36231；现显式允许CI14.51.36231、本机14.50.35717，SConstruct拒绝其他版本，未自动升级依赖。

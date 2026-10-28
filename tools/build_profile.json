@@ -1,1 +1,19 @@
-{"enabled_classes":["Node","Control","Label","ColorRect","OS","SceneTree"]}
+{
+  "enabled_classes": [
+    "Node",
+    "Node2D",
+    "CanvasItem",
+    "Control",
+    "Label",
+    "Button",
+    "ColorRect",
+    "OS",
+    "SceneTree",
+    "Input",
+    "JSON",
+    "DirAccess",
+    "FileAccess",
+    "ScrollContainer",
+    "VBoxContainer"
+  ]
+}

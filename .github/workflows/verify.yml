@@ -26,7 +26,7 @@ jobs:
       - name: Toolchain inventory
         shell: pwsh
         run: |
-          $required = '14.50.35717'
+          $required = '14.51.36231'
           try {
             $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
             if (!(Test-Path $vswhere)) { throw "vswhere not found at $vswhere" }
@@ -44,7 +44,7 @@ jobs:
           }
       - name: Build
         shell: pwsh
-        run: ./tools/build.ps1 -Jobs 4
+        run: ./tools/build.ps1 -Jobs 4 -Toolset 14.51.36231
       - name: Unit and headless integration
         shell: pwsh
         run: |

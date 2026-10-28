@@ -4,6 +4,15 @@
   "googletest_commit": "52eb8108c5bdec04579160ae17225d66034bd723",
   "scons": "4.11.1",
   "language": "C++17",
-  "windows_local": {"msvc_toolset": "14.50.35717", "cl": "19.50.35728", "python": "3.11"},
-  "linux_ci": {"image": "ubuntu-24.04", "compiler": "g++-13", "python": "3.11.9"}
+  "windows_local": {
+    "msvc_toolset": "14.50.35717",
+    "cl": "19.50.35728",
+    "python": "3.11"
+  },
+  "windows_ci": {
+    "source": "CI inventory run 40767419942",
+    "image": "windows-2025-vs2026",
+    "python": "3.11.9",
+    "msvc_toolset": "14.51.36231"
+  }
 }
