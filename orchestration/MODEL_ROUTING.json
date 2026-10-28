@@ -17,5 +17,19 @@
     "model": "deepseek-flash",
     "probe": "READY",
     "implementation": "FILE_ONLY_VERIFIED: real patch completed, CLI exit 0, Windows 21 tests and Headless PASS"
+  },
+  "subrouter": {
+    "retries": 1,
+    "codex": "gpt-6.1-sol (CLI verified)",
+    "claude": "claude-haiku-5-5 (CLI verified); sonnet/opus mappings configured, not CLI probed",
+    "desktop_chat_migration": false,
+    "status": "READY",
+    "base_url": "https://asiasouth.up.railway.app/v1",
+    "launchers": [
+      "tools/claude-task.ps1 -Provider auto",
+      "tools/codex-task.ps1 -Provider auto",
+      "tools/codex-subrouter.ps1"
+    ],
+    "secret_location": "orchestration/local/subrouter.json (gitignored)"
   }
 }
