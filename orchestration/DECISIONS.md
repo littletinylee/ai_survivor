@@ -3,3 +3,4 @@
 - 2026-10-29: 引擎固定 4.7.2；使用真实导出 API + 固定 godot-cpp commit，兼容性仍待加载验证。
 - 2026-10-29: Claude 403 后单次切换 DeepSeek，探针成功。
 - 2026-10-29: 日预算 100 CNY，北京时间自然日；未知费用停止无人值守。
+`n- 2026-10-29: Claude 403 originates from user OpenRouter overrides, not verified Anthropic suspension. Use isolated project settings and official OAuth; never modify global credentials. DeepSeek file-only real task verified, with local validation.

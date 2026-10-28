@@ -1,1 +1,16 @@
-{"controller":"Codex (current session; exact model not independently verified)","primary":{"provider":"Claude Code","requested_model":"claude-haiku-5-5","status":"BLOCKED","reason":"403 provider Terms Of Service; do not retry"},"fallback":{"provider":"DeepSeek Harness","model":"deepseek-flash","probe":"READY","implementation":"interrupted; partial files unverified"}}
+{
+  "controller": "Codex gpt-6.1-sol",
+  "primary": {
+    "provider": "Claude Code",
+    "requested_model": "claude-haiku-5-5",
+    "status": "WAITING_OFFICIAL_LOGIN",
+    "reason": "User settings route to OpenRouter; isolated official probe returned Not logged in, cost USD 0. Official OAuth login started; requires human authorization.",
+    "launcher": "tools/claude-task.ps1"
+  },
+  "fallback": {
+    "provider": "DeepSeek Harness",
+    "model": "deepseek-flash",
+    "probe": "READY",
+    "implementation": "FILE_ONLY_VERIFIED: real patch completed, CLI exit 0, Windows 21 tests and Headless PASS"
+  }
+}

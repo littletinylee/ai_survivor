@@ -1,6 +1,7 @@
-# 当前阻塞
-- Claude 请求被服务商 HTTP 403 拒绝，不重试或绕过。
-- DeepSeek 能响应，但本轮 shell 沙箱目录授权失败；部分文件通过文件工具写入，尚未编译。
-- Windows Computer Use 无法可靠识别浏览器 URL，工具要求停止本轮；未创建 PR。
-- 100 元/日预算已授权，但费用账本/硬预算执行器尚未实现，因此无人值守关闭。
-- Phase 0 未通过验收：SCons/GDExtension/CI 仍需完成，不得合并 main。
+# 当前阻塞与待办
+- Claude Code 曾返回 provider HTTP 403，不重试。
+- DeepSeek headless 探针成功，但 shell 沙箱目录授权失败；本轮由 Codex 补齐构建与修复。
+- 本机 Windows 21 项 GoogleTest、Headless 原生加载和启动截图已验证。
+- Linux CI 编译成功，集成步骤失败，正在通过增强诊断定位。
+- 用户报告已连接 GitHub；当前会话尚未出现 GitHub 连接器工具。SSH 推送已成功。
+- 每日 100 CNY 预算已记录；账本及预算执行器尚待实现，无人值守保持关闭。

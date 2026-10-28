@@ -12,3 +12,4 @@
 - 测试脚本曾捕获 Godot 对编译对象文件的错误导入（引擎退出 0 仍被判失败），已用 .gdignore 隔离构建和源码目录。
 
 CI 结果待补充。当前模拟仅验证计时/状态，尚不验证战斗、敌人、经验或资源容量；Phase 1 实现后补充。
+`nDeepSeek 实任务验收：session-e8475b0d-db97-40cc-a112-10446469f451，CLI exit 0，仅文件工具修改 tools/test.ps1 并交回；Codex 复验 21 tests PASS、Headless marker PASS。Claude 官方隔离探针 Not logged in，cost 0 USD，等待用户 OAuth。
