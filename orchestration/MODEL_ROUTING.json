@@ -2,10 +2,15 @@
   "controller": "Codex gpt-6.1-sol",
   "primary": {
     "provider": "Claude Code",
-    "requested_model": "claude-haiku-5-5",
-    "status": "WAITING_OFFICIAL_LOGIN",
-    "reason": "User settings route to OpenRouter; isolated official probe returned Not logged in, cost USD 0. Official OAuth login started; requires human authorization.",
-    "launcher": "tools/claude-task.ps1"
+    "requested_model": "claude-haiku-5-5 / claude-sonnet-5-5",
+    "status": "READY",
+    "reason": "Official claude.ai Pro OAuth verified. Haiku real file-edit task and Sonnet probe succeeded. Use --setting-sources project to exclude global OpenRouter overrides.",
+    "launcher": "tools/claude-task.ps1",
+    "tasks": {
+      "simple": "haiku",
+      "normal": "sonnet",
+      "complex": "opus (not probed; only on justified need)"
+    }
   },
   "fallback": {
     "provider": "DeepSeek Harness",

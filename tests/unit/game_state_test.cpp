@@ -181,4 +181,32 @@ TEST(GameStateManagerTest, RestartRejectedOutsideTerminal) {
     EXPECT_EQ(manager.state(), GameState::kUpgrade);
 }
 
+TEST(GameStateManagerTest, CommandsCannotSubstituteForEachOther) {
+    GameStateManager manager;
+
+    // start_run is only valid from Menu.
+    ASSERT_TRUE(manager.start_run());
+    EXPECT_EQ(manager.state(), GameState::kPlaying);
+
+    // Paused: start_run and complete_upgrade must be rejected without mutation.
+    ASSERT_TRUE(manager.pause());
+    EXPECT_FALSE(manager.start_run());
+    EXPECT_FALSE(manager.complete_upgrade());
+    EXPECT_EQ(manager.state(), GameState::kPaused);
+
+    // resume is the only valid command from Paused.
+    ASSERT_TRUE(manager.resume());
+    EXPECT_EQ(manager.state(), GameState::kPlaying);
+
+    // Upgrade: start_run and resume must be rejected without mutation.
+    ASSERT_TRUE(manager.begin_upgrade());
+    EXPECT_FALSE(manager.start_run());
+    EXPECT_FALSE(manager.resume());
+    EXPECT_EQ(manager.state(), GameState::kUpgrade);
+
+    // complete_upgrade is the only valid command from Upgrade.
+    ASSERT_TRUE(manager.complete_upgrade());
+    EXPECT_EQ(manager.state(), GameState::kPlaying);
+}
+
 } // namespace

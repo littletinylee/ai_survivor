@@ -13,3 +13,5 @@
 
 CI 结果待补充。当前模拟仅验证计时/状态，尚不验证战斗、敌人、经验或资源容量；Phase 1 实现后补充。
 `nDeepSeek 实任务验收：session-e8475b0d-db97-40cc-a112-10446469f451，CLI exit 0，仅文件工具修改 tools/test.ps1 并交回；Codex 复验 21 tests PASS、Headless marker PASS。Claude 官方隔离探针 Not logged in，cost 0 USD，等待用户 OAuth。
+
+Claude 官方通道验证：Haiku5.5 探针 READY，Haiku 真实读写任务退出0、无权限拒绝，新增 CommandsCannotSubstituteForEachOther；本地编译、22单测及Headless PASS。Sonnet5.5探针 READY。三次调用 CLI列表价格估算合计 USD 0.01999685（Pro订阅，非已确认现金扣费）；DeepSeek费用未知。

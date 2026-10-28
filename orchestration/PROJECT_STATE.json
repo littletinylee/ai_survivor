@@ -18,8 +18,8 @@
     "linux_ci_integration",
     "provider_runner_and_budget_enforcement"
   ],
-  "next": "Diagnose Linux integration, create PR when GitHub tools available, implement bounded orchestration",
-  "reason": "Windows local build and tests pass; fixing Linux CI integration; GitHub connector tools pending availability",
-  "tests": "21 GoogleTest PASS; Windows Godot Headless PASS; screenshot inspected; Linux build PASS integration FAIL",
+  "next": "Claude Sonnet: diagnose Linux engine import crash with baseline comparison, then PR and orchestration budget gate",
+  "reason": "Claude official Haiku and Sonnet restored; DeepSeek file workflow verified. Linux CI import exit134 requires fresh diagnosis by Sonnet.",
+  "tests": "22 GoogleTest PASS; Windows Headless PASS; Linux build PASS, import exit134",
   "workspace": "E:/AI Survior/ai_survivor"
 }
