@@ -35,7 +35,17 @@ jobs:
       - run: python -m SCons platform=linux arch=x86_64 target=template_debug -j2
       - name: Unit and headless integration
         shell: pwsh
-        run: ./tools/test.ps1 -Godot ./.tools/Godot_v4.7.2-stable_linux.x86_64
+        run: |
+          try {
+            ./tools/test.ps1 -Godot ./.tools/Godot_v4.7.2-stable_linux.x86_64
+          } catch {
+            Get-ChildItem build/test-results -Filter '*.log' | ForEach-Object {
+              $message = (Get-Content $_.FullName -Raw).Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+              Write-Host "::error file=$($_.Name)::$message"
+            }
+            Write-Host "::error::$($_.Exception.Message)"
+            throw
+          }
       - uses: actions/upload-artifact@v4
         if: always()
         with:

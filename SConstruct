@@ -6,12 +6,14 @@ ARGUMENTS.setdefault('build_profile', os.path.abspath('tools/build_profile.json'
 ARGUMENTS.setdefault('target', 'template_debug')
 os.makedirs('build', exist_ok=True)
 open('build/.gdignore', 'a').close()
-env = SConscript('godot-cpp/SConstruct')
+toolchain = {'MSVC_TOOLSET_VERSION': '14.50.35717'} if os.name == 'nt' else {'CXX': 'g++-13'}
+binding_env = Environment(tools=['default'], PLATFORM='', **toolchain)
+env = SConscript('godot-cpp/SConstruct', exports={'env': binding_env})
 env.Append(CPPPATH=['src'])
 sources = Glob('src/core/*.cpp') + Glob('src/gameplay/*.cpp')
 library = env.SharedLibrary('bin/ai_survivors' + env['suffix'] + env['SHLIBSUFFIX'], source=sources)
 
-tests = Environment(ENV=os.environ.copy())
+tests = Environment(ENV=os.environ.copy(), **toolchain)
 if tests['PLATFORM'] == 'win32':
     tests.Append(CXXFLAGS=['/std:c++17', '/EHsc', '/MT', '/utf-8'])
 else:
