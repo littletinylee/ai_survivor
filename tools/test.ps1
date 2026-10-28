@@ -24,5 +24,5 @@ function Invoke-GodotCheck([string]$Name, [string[]]$Arguments, [bool]$RequireMa
     if ($p.ExitCode -ne 0 -or $output -match '(?m)(ERROR|SCRIPT ERROR|FATAL):') { throw "$Name failed, exit=$($p.ExitCode)" }
     if ($RequireMarker -and $output -notmatch '(?m)^AI_SURVIVORS_INTEGRATION_OK\s*$') { throw 'Native integration marker missing' }
 }
-Invoke-GodotCheck 'import' @('--headless', '--path', $root, '--editor', '--import') $false
+Invoke-GodotCheck 'import' @('--headless', '--path', $root, '--editor', '--import', '--quit') $false
 Invoke-GodotCheck 'integration' @('--headless', '--path', $root, '--', '--integration-test') $true
