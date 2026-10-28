@@ -1,0 +1,1 @@
+{"controller":"Codex (current session; exact model not independently verified)","primary":{"provider":"Claude Code","requested_model":"claude-haiku-5-5","status":"BLOCKED","reason":"403 provider Terms Of Service; do not retry"},"fallback":{"provider":"DeepSeek Harness","model":"deepseek-flash","probe":"READY","implementation":"interrupted; partial files unverified"}}
