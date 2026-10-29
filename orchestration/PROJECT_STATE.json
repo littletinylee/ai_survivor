@@ -3,7 +3,7 @@
   "phase": 2,
   "status": "IN_PROGRESS",
   "date": "2026-10-29",
-  "branch": "codex/weapon-types",
+  "branch": "codex/simulation-steering",
   "remote": "git@github.com:littletinylee/ai_survivor.git",
   "completed": [
     "environment_probe",
@@ -16,10 +16,12 @@
   ],
   "unverified": [
     "complete_run_balance",
-    "P2-01_Windows_CI"
+    "enemy_variety",
+    "P2-02a_Windows_CI",
+    "reference_character_art_integration"
   ],
-  "next": "P2-01 PR and exact-head Windows CI; then P2-02 enemy variety and normal-character balance",
-  "reason": "Sonnet task reached per-call list-estimate budget, stopped; Codex completed local review/fixes/testing without retrying the paid call",
-  "tests": "100 GoogleTest + native actual acquisition/area damage/upgrade checks + 2 fresh cold starts PASS; normal JSON seed1 kite Lost150.53s/148kills, visual screenshot inspected",
+  "next": "Commit and CI for deterministic policy; then enemy variety/normal balance and ChatGPT-generated reference-correct character assets",
+  "reason": "Haiku policy measured normal fish621/614seconds Lost; user reference and final art-production preference recorded",
+  "tests": "107 GoogleTest + native Headless + 2 fresh cold starts PASS; PNG candidate RGBA checked, not integrated",
   "workspace": "E:/AI Survior/ai_survivor"
 }

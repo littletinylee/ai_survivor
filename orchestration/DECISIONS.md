@@ -6,3 +6,5 @@
 `n- 2026-10-29: Claude 403 originates from user OpenRouter overrides, not verified Anthropic suspension. Use isolated project settings and official OAuth; never modify global credentials. DeepSeek file-only real task verified, with local validation.
 
 - 2026-10-29：用户明确当前只需Windows。取消Linux CI门槛，既有Linux失败不影响Windows验收；改用Windows托管CI，编译器另按库存证据显式锁定。
+
+2026-10-29 用户明确大肥鱼为提供三视图的蓝发鲸尾女仆少女，普通鱼仅临时占位。用户先提Claude设计，后明确美术图片生产改回ChatGPT；最终按后者执行：内置image_gen产图、Claude代码、Codex统筹审查。参考作者/来源/许可unknown，原图与首个透明idle候选仅本机内部保存，未进公开资产。

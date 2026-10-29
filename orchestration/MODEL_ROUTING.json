@@ -31,5 +31,12 @@
       "tools/codex-subrouter.ps1"
     ],
     "secret_location": "orchestration/local/subrouter.json (gitignored)"
+  },
+  "art_production": {
+    "provider": "ChatGPT built-in image_gen",
+    "preference_source": "user2026-10-29",
+    "reference": "Blue-haired whale-tail maid girl three-view supplied by user; fish-shaped graphics are temporary placeholders",
+    "code_implementation": "Claude Haiku/Sonnet",
+    "status": "first transparent idle candidate generated and visually reviewed; not yet integrated into game"
   }
 }
