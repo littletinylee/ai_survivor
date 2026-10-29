@@ -146,6 +146,10 @@ class WeaponManager {
 public:
     void configure(const CombatStats &stats, const CombatConfig &config);
     void reset();
+    // Applies new stats/config in place. The remaining cooldown keeps its
+    // fraction of the interval, so an upgrade neither refires instantly nor
+    // stalls the weapon.
+    void reconfigure(const CombatStats &stats, const CombatConfig &config);
     // Cools down, then fires at the nearest enemy in range if ready and the
     // projectile pool has room. Returns true if a shot was fired.
     bool step(double dt, Vec2 origin, const EnemyManager &enemies,
@@ -203,6 +207,14 @@ public:
     // Spawns a hand-specified enemy (also used by WaveDirector's path).
     bool spawn_enemy(const EnemySpawn &spec);
 
+    // Applies upgraded player stats without rebuilding enemies, projectiles or
+    // RNG. Rejects (no change) if any value is non-finite or weapon_damage_scale
+    // is not positive. A max HP increase heals exactly the added amount; a
+    // decrease only clamps HP. Nothing else refills HP. weapon_damage_scale
+    // multiplies the damage the world was constructed with.
+    bool update_player_stats(const CombatStats &stats,
+                             double weapon_damage_scale);
+
     // Moves pending kill events out; the internal buffer is emptied.
     std::vector<KillEvent> take_kill_events();
 
@@ -215,6 +227,10 @@ public:
     }
     double hp() const { return hp_; }
     double max_hp() const { return stats_.max_hp; }
+    const CombatStats &stats() const { return stats_; }
+    double weapon_damage() const { return config_.weapon_base_damage; }
+    double weapon_cooldown() const { return weapon_.cooldown_remaining(); }
+    double weapon_interval() const { return weapon_.interval(); }
     std::uint32_t kill_count() const { return kill_count_; }
     std::uint32_t dropped_kill_events() const { return dropped_kill_events_; }
     double combat_time() const { return combat_time_; }
@@ -233,6 +249,7 @@ private:
     WeaponManager weapon_;
     WaveDirector waves_;
     std::vector<KillEvent> kill_events_;
+    double base_weapon_damage_ = 12.0;
     double hp_ = 0.0;
     double invulnerable_ = 0.0;
     double combat_time_ = 0.0;

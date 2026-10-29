@@ -165,6 +165,19 @@ void WeaponManager::configure(const CombatStats &stats,
 
 void WeaponManager::reset() { cooldown_ = 0.0; }
 
+void WeaponManager::reconfigure(const CombatStats &stats,
+                                const CombatConfig &config) {
+    const double old_interval = interval_;
+    const double fraction =
+        old_interval > 0.0 ? std::min(1.0, cooldown_ / old_interval) : 0.0;
+    stats_ = stats;
+    config_ = config;
+    const double speed =
+        sanitize(stats.attack_speed_multiplier, 0.1, 5.0, 1.0);
+    interval_ = config.weapon_base_interval / speed;
+    cooldown_ = fraction * interval_;
+}
+
 bool WeaponManager::step(double dt, Vec2 origin, const EnemyManager &enemies,
                          ProjectileSystem &projectiles, CombatRng &rng) {
     cooldown_ = std::max(0.0, cooldown_ - dt);
@@ -274,6 +287,7 @@ CombatWorld::CombatWorld(const CombatStats &stats, std::uint64_t seed,
         sanitize(stats.attack_speed_multiplier, 0.1, 5.0, 1.0);
     stats_.crit_chance = sanitize(stats.crit_chance, 0.0, 1.0, 0.0);
     hp_ = stats_.max_hp;
+    base_weapon_damage_ = config_.weapon_base_damage;
     weapon_.configure(stats_, config_);
     waves_.configure(config_);
     kill_events_.reserve(kMaxKillEvents);
@@ -281,6 +295,35 @@ CombatWorld::CombatWorld(const CombatStats &stats, std::uint64_t seed,
 
 bool CombatWorld::spawn_enemy(const EnemySpawn &spec) {
     return enemies_.spawn(spec, config_.enemy_radius);
+}
+
+bool CombatWorld::update_player_stats(const CombatStats &stats,
+                                      double weapon_damage_scale) {
+    if (!std::isfinite(stats.max_hp) || !std::isfinite(stats.armor) ||
+        !std::isfinite(stats.damage_multiplier) ||
+        !std::isfinite(stats.attack_speed_multiplier) ||
+        !std::isfinite(stats.crit_chance) ||
+        !std::isfinite(weapon_damage_scale) || weapon_damage_scale <= 0.0) {
+        return false;
+    }
+    CombatStats next;
+    next.max_hp = sanitize(stats.max_hp, 1.0, 1e6, 100.0);
+    next.armor = sanitize(stats.armor, 0.0, DamageSystem::kMaxArmor, 0.0);
+    next.damage_multiplier =
+        sanitize(stats.damage_multiplier, DamageSystem::kMinDamageMultiplier,
+                 DamageSystem::kMaxDamageMultiplier, 1.0);
+    next.attack_speed_multiplier =
+        sanitize(stats.attack_speed_multiplier, 0.1, 5.0, 1.0);
+    next.crit_chance = sanitize(stats.crit_chance, 0.0, 1.0, 0.0);
+
+    const double added = next.max_hp - stats_.max_hp;
+    stats_ = next;
+    hp_ = std::min(next.max_hp, hp_ + std::max(0.0, added));
+    config_.weapon_base_damage =
+        sanitize(base_weapon_damage_ * weapon_damage_scale, 0.0, 1e9,
+                 base_weapon_damage_);
+    weapon_.reconfigure(stats_, config_);
+    return true;
 }
 
 std::vector<KillEvent> CombatWorld::take_kill_events() {

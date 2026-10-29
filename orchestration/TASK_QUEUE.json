@@ -33,7 +33,7 @@
     {
       "id": "P1-03",
       "title": "Experience and upgrade cards",
-      "status": "IN_PROGRESS",
+      "status": "LOCAL_VERIFIED_PENDING_CI",
       "acceptance": [
         "Kills drop collectable experience",
         "Continuous upgrades queue correctly",

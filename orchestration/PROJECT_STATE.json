@@ -18,8 +18,8 @@
     "experience_cards",
     "complete_run_balance"
   ],
-  "next": "P1-03 experience pickups, continuous level-up queue and three valid upgrade cards; preserve six-weapon requirement for supported weapon registry",
-  "reason": "Windows push and PR CI both passed on0d58b1f; PR#1 merged into main at dbead02. Fresh import mitigation locally verified three times and CI verified twice.",
-  "tests": "52 GoogleTest PASS; Windows push+PR CI PASS; cold-start regression PASS; main gameplay baseline merged",
+  "next": "Verify P1-03 Windows CI and merge; implement P1-04 fixed-seed full combat/progression simulation and balance",
+  "reason": "XP pickups, queued valid upgrade choices and effective runtime stats implemented; unsupported weapons excluded from offers",
+  "tests": "80 GoogleTest PASS; native progression Headless PASS; 2 cold-start fixtures PASS; upgrade screenshot inspected; new branch Windows CI pending",
   "workspace": "E:/AI Survior/ai_survivor"
 }
