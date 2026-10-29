@@ -8,6 +8,6 @@
 
 每周期只做一次明确决策：审查上一轮宿主结果，更新 PROJECT_STATE/HANDOFF/TASK_QUEUE，再为一个小任务写 orchestration/ 下的任务说明及 local/runner/job-request.json，然后退出。请求只含唯一id、task_file、model haiku或sonnet、max_budget_usd0.01到1、provider auto。宿主会在你退出后启动Claude，接着build/test和固定种子模拟。禁止在你本进程里调用外部开发者。简单任务Haiku优先，常规Sonnet，预算拒绝或开发失败不得同任务改id盲重试。需要DeepSeek时保存剩余任务并退出等待桌面处理，两个开发通道都不可用置PAUSED。
 
-当前优先级：保留已实现Chaser/Charger/Brute，依据真实JSON seed1/2 kite与seed2 stationary改善难度曲线/策略，正常胜利必须真实1200秒，不用无敌/高HP夹具/缩短时间。防御选卡95/.75/armor85实验已失败并撤回，不要重做。下一候选为 P2-02-wave-curve-task.md，先核对最新状态是否已经执行。保持三类武器、6武器和对象上限、暂停/升级冻结、stationary死亡基线。更改被宿主验证后下一周期审查，测试通过不等于实验验收通过。
+当前优先级：P2-02-charger-aware-task.md，第一周期为该任务写唯一id charger-aware-bot-v1、model haiku、max_budget_usd0.25、provider auto 的请求后立即退出。若该id已有结果则先审查，不能重发。第二周期只审查宿主报告，更新断点后退出，不新开实验；混合/退步必须记录不接受，不能写平衡已通过。当前分支codex/charger-aware-bot，PR7已合并main。防御选卡95/.75/armor85及慢刷怪实验均失败撤回，禁止重复。保持三类武器、6武器/对象上限、暂停/升级冻结和stationary死亡基线。正常胜利必须真实1200秒，不用高HP夹具/缩短时间。完整Phase0–5仍待推进。
 
 只在当前分支保存常规提交，禁止reset或丢弃历史，不伪造PR/CI；合并留待桌面针对精确提交WindowsCI及审查通过后执行。每轮记录实际修改、真实验证、未验证目标和费用unknown，然后退出交还宿主。认证/预算拒绝停止新任务；同故障三次重新分析。Subrouter用户已确认每日100CNY后台硬上限，实际费用unknown。两个已观察上游传输中断不是额度拒绝，禁止原样循环重启。

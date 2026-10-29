@@ -55,3 +55,4 @@ Subrouter runner PID29232已于07:49:41UTC终止，reasonagent_exit_1；结构�
 2026-10-29桌面复核更正：宿主SCons/Godot/用户目录均正常；此前所谓工具链阻塞仅发生于内层Codex沙箱，不修改用户配置。runner476已退出，cycle3上游HTTP524/connection reset，是第二次传输失败而非预算/认证拒绝，禁止原样重启。宿主重新构建118并完成native/2cold后实测防御选卡实验485/500秒，故撤回。Haiku宿主曲线实验119测试/native/2cold通过，但真实seed1/2为598.82/732.20秒，seed1退步，亦撤回。两个实验均保留local审计，无默认角色20分钟胜利。新增受限job-request宿主Claude交接和host validation/simulation记录；22运行器用例21通过1因Windows符号链接权限跳过。完整Phase0–5继续，Tripo取消。
 
 宿主最终重编译117/117、native Headless和2新目录cold PASS；真实JSON615.683345647/623.033345794/25.133333836，hash全部恢复原基线。runner22用例21PASS1权限skip；provider12检查+mock交接PASS。下一步当前敌人/宿主协议提交PR精确WindowsCI，通过后才合并。费用unknown，Subrouter用户100CNY/day后台硬限额仍为确认依据。
+PR#7在7f9cded推送40843550847和PR40843589584双WindowsCI成功及审查后合并main003422ca2c127f18bd1951e731f05bfdaef10635。新分支codex/charger-aware-bot，任务P2-02-charger-aware-task.md。新的短总控/宿主交接协议仅计划一次2周期受控验证；内层不启动Claude或验证进程，第一周期请求Haiku0.25，宿主真实验证，第二周期审查后停止。若传输再失败保存诊断，不原样重启。预算确认100CNY/day，实际费用unknown。
