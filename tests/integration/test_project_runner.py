@@ -1,4 +1,4 @@
-import argparse, importlib.util, json, sys, tempfile, time, unittest
+import argparse, importlib.util, io, json, os, sys, tempfile, time, unittest
 from pathlib import Path
 from unittest import mock
 
@@ -29,6 +29,37 @@ def args(**kw):
 
 def state(root):
     return json.loads(pr.paths(root)["state"].read_text("utf-8"))
+
+
+def job_root(tmp):
+    root = make_root(tempfile.mkdtemp(dir=tmp))
+    for rel, body in (("orchestration/job-task.md", "task"), ("orchestration/local/secret.md", "x"),
+                      ("orchestration/big.md", "x" * (64 * 1024 + 1)), ("tools/x.md", "x")):
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(body, encoding="utf-8")
+    return root
+
+
+def job_request(**kw):
+    return {"id": "job-1", "task_file": "orchestration/job-task.md", "model": "haiku",
+            "max_budget_usd": 0.2, "provider": "auto", **kw}
+
+
+def fake_run(root, request=None, outcome=None):
+    """Stand-in for run_bounded. The agent step writes `request` (dict or raw text) and exits 0.
+    `outcome` maps a step name to the (rc, why) it returns; other steps succeed."""
+    outcome, calls = outcome or {}, []
+
+    def fake(cmd, *a, **kw):
+        name = next(n for n in ("codex-task", "claude-task", "build.ps1", "test.ps1")
+                    if any(n in part for part in cmd))
+        calls.append(name)
+        if name == "codex-task" and request is not None:
+            text = request if isinstance(request, str) else json.dumps(request)
+            pr.paths(root)["dir"].mkdir(parents=True, exist_ok=True)
+            pr.paths(root)["job_request"].write_text(text, encoding="utf-8")
+        return outcome.get(name, (0, "ok"))
+    return fake, calls
 
 
 class RunnerTests(unittest.TestCase):
@@ -167,6 +198,175 @@ class RunnerTests(unittest.TestCase):
                     ["run", "--provider", "unknown"]):
             with self.assertRaises(SystemExit), mock.patch("sys.stderr"):
                 pr.main(bad)
+
+    def run_with_request(self, root, request, outcome=None):
+        fake, calls = fake_run(root, request, outcome)
+        with mock.patch.object(pr, "run_bounded", side_effect=fake), \
+                mock.patch.object(pr, "fingerprint", return_value="a"):
+            return pr.run(args(), root), calls
+
+    def test_job_runs_after_agent_before_build_and_test(self):
+        root = job_root(self.tmp.name)
+        fake, calls = fake_run(root, job_request(model="sonnet", max_budget_usd=0.5, provider="subrouter"))
+        prints = iter(range(100))
+        with mock.patch.object(pr, "run_bounded", side_effect=fake) as rb, \
+                mock.patch.object(pr, "fingerprint", side_effect=lambda *a: str(next(prints))):
+            self.assertEqual(pr.run(args(max_cycles=1), root), 0)
+        self.assertEqual(calls, ["codex-task", "claude-task", "build.ps1", "test.ps1"])
+        cmd = rb.call_args_list[1].args[0]
+        self.assertEqual(cmd[:3], ["/abs/pwsh", "-NoProfile", "-File"])
+        self.assertEqual(cmd[3:], [str(root / "tools/claude-task.ps1"), "-TaskFile",
+                                   str((root / "orchestration/job-task.md").resolve()),
+                                   "-Model", "sonnet", "-MaxBudgetUsd", "0.5", "-Provider", "subrouter"])
+        jobs = pr.paths(root)["jobs"]
+        self.assertEqual(json.loads((jobs / "job-1.request.json").read_text("utf-8"))["model"], "sonnet")
+        self.assertEqual(json.loads((jobs / "job-1.result.json").read_text("utf-8"))["status"], "ok")
+        self.assertFalse(pr.paths(root)["job_request"].exists())  # consumed after the agent exited
+        record = json.loads(pr.paths(root)["validation"].read_text("utf-8"))
+        self.assertEqual((record["status"], record["job_id"]), ("passed", "job-1"))
+
+    def test_duplicate_job_id_never_reaches_developer(self):
+        root = job_root(self.tmp.name)
+        pr.paths(root)["jobs"].mkdir(parents=True)
+        (pr.paths(root)["jobs"] / "job-1.result.json").write_text("{}", encoding="utf-8")
+        rc, calls = self.run_with_request(root, job_request())
+        self.assertEqual((rc, calls), (1, ["codex-task"]))
+        self.assertEqual(state(root)["reason"], "job_request_invalid: duplicate_id")
+
+    def test_invalid_job_requests_rejected_before_developer(self):
+        cases = [
+            {"task_file": "../outside.md"}, {"task_file": "tools/x.md"},
+            {"task_file": "orchestration/local/secret.md"}, {"task_file": "orchestration/big.md"},
+            {"task_file": "tools/build.ps1"}, {"task_file": "orchestration/CONTINUE_TASK.md.bak"},
+            {"model": "opus"}, {"max_budget_usd": 0}, {"max_budget_usd": 1.5}, {"max_budget_usd": True},
+            {"max_budget_usd": "0.2"}, {"max_budget_usd": float("nan")}, {"max_budget_usd": 0.005},
+            {"id": "../x"}, {"id": "a b"}, {"id": "x" * 65}, {"id": "-lead"}, {"id": None},
+            {"provider": "fast"}, {"command": "rm -rf x"}, {"env": {"X": "1"}},
+        ]
+        for bad in cases:
+            root = job_root(self.tmp.name)
+            rc, calls = self.run_with_request(root, job_request(**bad))
+            self.assertEqual((rc, calls), (1, ["codex-task"]), bad)
+            self.assertTrue(state(root)["reason"].startswith("job_request_invalid"), bad)
+            self.assertFalse(pr.paths(root)["jobs"].exists(), bad)
+        absolute = job_root(self.tmp.name)
+        rc, calls = self.run_with_request(absolute, job_request(task_file=str(absolute / "orchestration/job-task.md")))
+        self.assertEqual((rc, calls), (1, ["codex-task"]))
+        for raw in ("{not json", "[1, 2]", json.dumps({k: v for k, v in job_request().items() if k != "model"})):
+            root = job_root(self.tmp.name)
+            rc, calls = self.run_with_request(root, raw)
+            self.assertEqual((rc, calls), (1, ["codex-task"]), raw)
+            self.assertFalse(pr.paths(root)["jobs"].exists())
+
+    def test_symlink_escape_rejected(self):
+        root = job_root(self.tmp.name)
+        try:
+            os.symlink(root / "orchestration/local/secret.md", root / "orchestration/link.md")
+        except OSError:
+            self.skipTest("symlink creation needs privilege on this Windows account")
+        rc, calls = self.run_with_request(root, job_request(task_file="orchestration/link.md"))
+        self.assertEqual((rc, calls), (1, ["codex-task"]))
+        self.assertTrue(state(root)["reason"].startswith("job_request_invalid"))
+
+    def test_developer_failure_stops_before_build(self):
+        for outcome, reason, status in (((1, "ok"), "developer_exit_1", "failed"),
+                                        ((None, "timeout"), "developer_timeout", "timeout")):
+            root = job_root(self.tmp.name)
+            rc, calls = self.run_with_request(root, job_request(), {"claude-task": outcome})
+            self.assertEqual((rc, calls), (1, ["codex-task", "claude-task"]))
+            self.assertEqual(state(root)["reason"], reason)
+            result = json.loads((pr.paths(root)["jobs"] / "job-1.result.json").read_text("utf-8"))
+            self.assertEqual(result["status"], status)
+            self.assertFalse(pr.paths(root)["validation"].exists())
+
+    def test_validation_record_and_stale_detection(self):
+        root = job_root(self.tmp.name)  # no job request: plain agent -> build -> test
+        xml = root / "build/test-results/unit.xml"
+        xml.parent.mkdir(parents=True)
+        xml.write_text('<testsuites tests="117" failures="0" errors="0"></testsuites>', encoding="utf-8")
+        with mock.patch.object(pr, "run_bounded", return_value=(0, "ok")), \
+                mock.patch.object(pr, "fingerprint", side_effect=["a", "b", "c"]):
+            self.assertEqual(pr.run(args(max_cycles=1), root), 0)
+        record = json.loads(pr.paths(root)["validation"].read_text("utf-8"))
+        self.assertEqual((record["status"], record["source_fingerprint"], record["build_exit"], record["test_exit"]),
+                         ("passed", "b", 0, 0))
+        self.assertEqual(record["unit_xml"], {"tests": 117, "failures": 0, "errors": 0})
+        fake, _ = fake_run(root, None, {"codex-task": (1, "ok")})  # next agent phase fails; record must stay
+        with mock.patch.object(pr, "run_bounded", side_effect=fake), \
+                mock.patch.object(pr, "fingerprint", return_value="c"):
+            self.assertEqual(pr.run(args(max_cycles=1), root), 1)
+        self.assertEqual(json.loads(pr.paths(root)["validation"].read_text("utf-8"))["status"], "passed")
+        with mock.patch.object(pr, "fingerprint", return_value="b"):
+            self.assertTrue(pr.validation_report(root, "git")["current_source_matches"])
+        with mock.patch.object(pr, "fingerprint", return_value="d"):
+            self.assertFalse(pr.validation_report(root, "git")["current_source_matches"])
+        out = io.StringIO()
+        with mock.patch.object(pr, "ROOT", root), mock.patch.object(pr, "fingerprint", return_value="d"), \
+                mock.patch("sys.stdout", out):
+            self.assertEqual(pr.main(["validation"]), 0)
+        self.assertFalse(json.loads(out.getvalue())["current_source_matches"])
+
+    def test_failed_build_and_test_record_failed(self):
+        root = job_root(self.tmp.name)
+        xml = root / "build/test-results/unit.xml"
+        xml.parent.mkdir(parents=True)
+        xml.write_text('<testsuites tests="999" failures="0"/>', encoding="utf-8")
+        fake, calls = fake_run(root, None, {"build.ps1": (2, "ok")})
+        with mock.patch.object(pr, "run_bounded", side_effect=fake), \
+                mock.patch.object(pr, "fingerprint", side_effect=["a", "b"]):
+            self.assertEqual(pr.run(args(max_cycles=1), root), 1)
+        record = json.loads(pr.paths(root)["validation"].read_text("utf-8"))
+        self.assertEqual((record["status"], record["failure_reason"], record["build_exit"], record["test_exit"]),
+                         ("failed", "build_exit_2", 2, None))
+        self.assertEqual(calls, ["codex-task", "build.ps1"])
+        self.assertIsNone(record["unit_xml"])  # old binary's XML cannot validate failed source build
+        root = job_root(self.tmp.name)
+        fake, _ = fake_run(root, None, {"test.ps1": (1, "ok")})
+        with mock.patch.object(pr, "run_bounded", side_effect=fake), \
+                mock.patch.object(pr, "fingerprint", side_effect=["a", "b"]):
+            self.assertEqual(pr.run(args(max_cycles=1), root), 1)
+        record = json.loads(pr.paths(root)["validation"].read_text("utf-8"))
+        self.assertEqual((record["status"], record["failure_reason"], record["test_exit"]), ("failed", "test_exit_1", 1))
+
+    def test_host_simulations_follow_tests_and_record_reports(self):
+        root = job_root(self.tmp.name)
+        calls = []
+
+        def execute(cmd, *a, **kw):
+            calls.append(cmd)
+            if str(root / "tools/simulate.ps1") in cmd:
+                seed, policy = int(cmd[cmd.index("-Seed") + 1]), cmd[cmd.index("-Policy") + 1]
+                out = root / f"build/test-results/simulation-{seed}-{policy}.out.log"
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text("AI_SURVIVORS_SIMULATION_REPORT " + json.dumps(
+                    {"requested_seed": seed, "policy": policy, "final_state": "Lost"}), encoding="utf-8")
+            return 0, "ok"
+
+        with mock.patch.object(pr, "run_bounded", side_effect=execute), \
+                mock.patch.object(pr, "fingerprint", side_effect=["a", "b"]):
+            self.assertEqual(pr.run(args(max_cycles=1, simulations=True), root), 0)
+        self.assertEqual(len(calls), 6)  # controller, build, test, then three real-character reports
+        self.assertTrue(calls[2][3].endswith("test.ps1"))
+        record = json.loads(pr.paths(root)["validation"].read_text("utf-8"))
+        self.assertEqual(record["status"], "passed")
+        reports = record["simulation_reports"]
+        self.assertEqual([(r["requested_seed"], r["policy"]) for r in reports.values()],
+                         [(1, "kite"), (2, "kite"), (2, "stationary")])
+
+    def test_missing_or_mismatched_simulation_report_stops_cycle(self):
+        for body in (None, 'AI_SURVIVORS_SIMULATION_REPORT {"requested_seed":2,"policy":"kite"}'):
+            root = job_root(self.tmp.name)
+            if body:
+                out = root / "build/test-results/simulation-1-kite.out.log"
+                out.parent.mkdir(parents=True)
+                out.write_text(body, encoding="utf-8")
+            with mock.patch.object(pr, "run_bounded", return_value=(0, "ok")) as rb, \
+                    mock.patch.object(pr, "fingerprint", side_effect=["a", "b"]):
+                self.assertEqual(pr.run(args(max_cycles=1, simulations=True), root), 1)
+            self.assertEqual(rb.call_count, 4)
+            record = json.loads(pr.paths(root)["validation"].read_text("utf-8"))
+            self.assertEqual(record["status"], "failed")
+            self.assertTrue(record["failure_reason"].startswith("simulation_1_kite_invalid_report"))
 
 
 if __name__ == "__main__":

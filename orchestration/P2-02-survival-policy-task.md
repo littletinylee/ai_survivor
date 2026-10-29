@@ -1,3 +1,5 @@
+STATUS: REJECTED 2026-10-29. HPpriority95 / threshold0.75 / armor85 passed118 tests/native/2cold but real seeds1/2 fell to485.233343038 /500.750010015 seconds. Code and extra test removed; do not repeat. Baseline117 and615.683345647 /623.033345794 seconds restored and rebuilt on host.
+
 Task: improve the deterministic kite policy's survival through upgrade-card choices, using current real reports as evidence.
 
 Baseline on branch codex/enemy-variety with unchanged data/characters/deepseek_big_fish.json:

@@ -44,6 +44,14 @@ ART-01a静态角色本地接入通过：107测试+原生贴图+2冷启动；选�
 
 PR#6已在598251c双WindowsCI通过后合并main，merge6c6250702503debd4f851f8faf68b037bada7faa。用户授权试Tripo生产角色，现IAB tab1工作区上传按钮弹登录窗，需要用户本人登录；已保存tripo-login.jpg并保留页面，未上传/未生成/未购买。Tripo默认可见性公开，登录后先核对私密选项、账户额度和导出，不盲点付费。代码独立继续P2-02b冲锋/重装敌人。
 
+受控恢复周期：分支codex/enemy-variety。读取已保存P2-02生存策略任务，不重复探针。Claude Haiku单次调用在约176秒后明确ECONNREFUSED，脚本未切备用、未编辑；不是认证/额度拒绝。本会话没有DeepSeek文件编辑入口，Codex接管仅修改src/core/run_simulation.cpp和tests/unit/kite_bot_test.cpp：HP低于0.75时生命优先级95、护甲85，保留新武器100；新增防御排序回归。当前机器执行shell下python安装无SCons模块、scons/py launcher不可用，访问用户目录受限；未找到可执行Godot入口，因此当前改动尚未构建、测试或模拟，严禁以现存旧exe/日志宣称通过。git diff --check通过，未提交。本轮结束前置任务断点；下周期首先在可用Windows开发桌面恢复锁定SCons/Godot验证入口，构建后运行全部测试、Headless/冷启动及真实JSON seed1/2 kite和seed2 stationary报告。再次connection reset/拒绝不得原样循环；费用unknown。
+
+受控恢复（2026-10-29）：未重启任何子总控或模型。确认锁定Godot 4.7.2可执行文件可运行；`tools/build.ps1`失败（Python 3.11无SCons，pip wheel缓存为空）。`tools/test.ps1 -ColdStartCount 2`的现存测试程序报告118/118通过，但后续Godot导入因沙箱不能访问`C:/Users/67408/AppData/Roaming/Godot`及系统CA存储而失败；未修改项目外配置。该测试程序和扩展没有通过本次构建，不能据此验收当前源码。未跑模拟，未提交。下一周期需先恢复项目本地SCons及可写临时Godot设置目录，再从构建开始完成单测、Headless冷启动和真实JSON固定种子报告。差异检查通过；本次费用unknown，无认证/预算拒绝或连接重置。
+
 P2-02b本地117测试+Headless+2冷启动通过，截图已审，正常616/623秒Lost。用户要求我用缓存Subrouter继续：已补runner --provider subrouter（13离线测试PASS），计划启动隐藏6周期/每周期900秒/共4小时的独立总控。启动后本聊天仅只读，不并发改树。CONTINUE_TASK已完整保存上下文/全部Phase0–5目标与当前优先级。Tripo已登录，200额度、默认公开/55、导出提示升级，未生成未购买；暂由桌面处理，不挡代码推进。Sonnet本次自设预算终止而非日预算拒绝，未重试；实际费用unknown。
 
 Subrouter runner PID29232已于07:49:41UTC终止，reasonagent_exit_1；结构化错误为上游connection reset by peer，不是认证/预算拒绝。无遗留Claude或runner进程，仅新增已保存的P2-02-survival-policy-task.md，原117测试基线代码未改。已保存传输故障断点，显式medium减少单次长推理，自动request/stream重试仍0，仅计划一次受控恢复；再次同故障必须停止原样重启。用户明确取消Tripo，继续2D路线；取消所有Tripo待办，不购买/不生成。
+
+2026-10-29桌面复核更正：宿主SCons/Godot/用户目录均正常；此前所谓工具链阻塞仅发生于内层Codex沙箱，不修改用户配置。runner476已退出，cycle3上游HTTP524/connection reset，是第二次传输失败而非预算/认证拒绝，禁止原样重启。宿主重新构建118并完成native/2cold后实测防御选卡实验485/500秒，故撤回。Haiku宿主曲线实验119测试/native/2cold通过，但真实seed1/2为598.82/732.20秒，seed1退步，亦撤回。两个实验均保留local审计，无默认角色20分钟胜利。新增受限job-request宿主Claude交接和host validation/simulation记录；22运行器用例21通过1因Windows符号链接权限跳过。完整Phase0–5继续，Tripo取消。
+
+宿主最终重编译117/117、native Headless和2新目录cold PASS；真实JSON615.683345647/623.033345794/25.133333836，hash全部恢复原基线。runner22用例21PASS1权限skip；provider12检查+mock交接PASS。下一步当前敌人/宿主协议提交PR精确WindowsCI，通过后才合并。费用unknown，Subrouter用户100CNY/day后台硬限额仍为确认依据。

@@ -1,19 +1,13 @@
-恢复说明：前一个Subrouter总控在完成读取与写入orchestration/P2-02-survival-policy-task.md后遇到connection reset by peer而退出；没有认证或额度拒绝，也没有启动遗留Claude写入者。此为已分析后的首次受控恢复，推理级别显式medium、自动请求/流重试仍0。直接复用已保存任务断点，不重复无用探针。若再发生同样连接重置，保存状态退出，不再原样重启，留待诊断。
+# Subrouter 总控：单次短交接
 
-# 当前运行器的有界周期任务
+正式目录 E:/AI Survior/ai_survivor。你是 Codex 总控，外层 project_runner 独占工作树。不要启动任何 Codex、Claude、DeepSeek、runner、构建或 Godot 进程；不要修改用户全局配置或放宽沙箱。内层沙箱不能访问宿主网络子进程、SCons和Godot AppData，不代表宿主工具链损坏。用 docs/RUNNER_PROTOCOL.md 交接给宿主，保持本次交接简短，避免长流被中转断开。
 
-你是AI幸存者项目的Codex总控，本进程已经通过Subrouter启动。正式目录E:/AI Survior/ai_survivor。不要再启动任何Codex进程、project_runner实例或子总控，避免递归与并发写入。当前运行器独占工作树；桌面聊天仅只读检查。不要修改用户全局配置或放宽安全设置。
+先读 AGENTS.md、docs/PROJECT_BRIEF.md、docs/ARCHITECTURE.md，orchestration/PROJECT_STATE.json、HANDOFF.md最新记录、TASK_QUEUE.json、MODEL_ROUTING.json、BUDGET_POLICY.json。完整目标仍为Phase0–5，当前只验证Windows。Tripo已由用户取消；蓝发鲸尾女仆角色图像由ChatGPT生产，Claude写代码。不要把静态idle算成完整动画。
 
-先读AGENTS.md、docs/PROJECT_BRIEF.md、docs/ARCHITECTURE.md、orchestration/PROJECT_STATE.json、HANDOFF.md、TASK_QUEUE.json、MODEL_ROUTING.json、BUDGET_POLICY.json。完整目标仍是原始Phase0–5的游戏，不把当前功能或测试通过视为整个项目完成。当前只验收Windows，不调查Linux。角色是蓝发鲸尾女仆少女；美术由ChatGPT image_gen生产，Claude写代码。
+只允许读取 local/runner/state.json、validation.json 和 jobs/*.result.json 的非敏感结构化结果，以及需要时的 build/test-results/unit.xml 和 simulation-*.out.log；不得读凭据或原始开发者日志。先用 python tools/project_runner.py validation 检查宿主验证记录与源码指纹。passed仅表示构建/测试结构通过；正常角色1200秒胜利、CI和审查必须分别验收。
 
-从最新next和未完成任务推进一个有验收标准的周期。代码实现优先用tools/claude-task.ps1分配紧凑任务（简单Haiku，常规Sonnet；按任务设置小预算，达到上限即停止、不原样重试），实际不可用才交DeepSeek deepseek-flash。Codex负责架构、调度、审查和验收。Claude写入期间你只能读，等其真实进程终止再改文件。可直接执行必要的小修和测试，不要为简单事情反复探针。
+每周期只做一次明确决策：审查上一轮宿主结果，更新 PROJECT_STATE/HANDOFF/TASK_QUEUE，再为一个小任务写 orchestration/ 下的任务说明及 local/runner/job-request.json，然后退出。请求只含唯一id、task_file、model haiku或sonnet、max_budget_usd0.01到1、provider auto。宿主会在你退出后启动Claude，接着build/test和固定种子模拟。禁止在你本进程里调用外部开发者。简单任务Haiku优先，常规Sonnet，预算拒绝或开发失败不得同任务改id盲重试。需要DeepSeek时保存剩余任务并退出等待桌面处理，两个开发通道都不可用置PAUSED。
 
-交接基线：分支codex/enemy-variety，已有真实Chaser/Charger/Brute、0.7秒锁定预警→0.3秒冲刺→0.8秒恢复→1秒重新准备，按45/90秒引入混合波。117项GoogleTest、原生Headless、2个全新目录冷启动和敌人截图已由桌面实际验证。Sonnet单次任务因自设0.5USD列表估价上限停止，Codex修正新测试的累计时间错误后复验；不是供应商每日预算耗尽。正常角色seed1/2仍Lost约615.68/623.03秒；20分钟平衡未达成。后续最高优先级是读实际报告、分析后改善正常玩法难度曲线/策略，使真实JSON默认角色不靠作弊覆盖数值能走完整1200秒；有可复现正常胜利后增加有意义回归，保留stationary死亡基线。不能用高HP夹具、无敌、直接改状态或缩短胜利时间冒充正常胜利。不要破坏已有的三类真实武器、卡片、暂停/连续升级冻结、6武器与对象容量限制。
+当前优先级：保留已实现Chaser/Charger/Brute，依据真实JSON seed1/2 kite与seed2 stationary改善难度曲线/策略，正常胜利必须真实1200秒，不用无敌/高HP夹具/缩短时间。防御选卡95/.75/armor85实验已失败并撤回，不要重做。下一候选为 P2-02-wave-curve-task.md，先核对最新状态是否已经执行。保持三类武器、6武器和对象上限、暂停/升级冻结、stationary死亡基线。更改被宿主验证后下一周期审查，测试通过不等于实验验收通过。
 
-用户已取消Tripo：按现有2D路线继续，不再打开、上传、生成或购买Tripo服务。ChatGPT生产角色图像，Claude写代码。行走图集V1/V2未通过布局验收，不把静态idle当完整动画。其余角色/被动、音画、性能、设置、Windows打包和发布准备仍按队列保留。
-
-每周期实际执行必要构建、单测、Godot Headless和固定种子报告；检查退出码、XML、集成标记，不能只信模型自述。失败、超时或同故障3次先保存断点并分析，禁止盲重试。测试失败不得合并main，禁止重置分支/破坏历史。可以在当前开发分支保存提交。若网络或GitHub工具不可用，保留本地提交并写清待桌面发布，不伪造PR/CI通过；不要为此弱化安全设置。合并只能在精确提交的Windows CI与审查通过后。禁止自动发布游戏或购买服务。
-
-预算依用户确认的Subrouter每日100CNY后台硬上限；实际花费unknown，认证/供应商预算拒绝后停止新任务和本周期。不得读取、输出或提交orchestration/local中的凭据与日志原文；只有现有启动脚本在本机读取凭据。只允许读明确的runner state/进程心跳以恢复，公开状态记录中不能放密钥、个人账户数据或构建产物。
-
-周期完成写PROJECT_STATE、HANDOFF、TASK_QUEUE：实际修改、已验证测试、剩余任务、阻塞、分支/提交、模型与未知费用。保存后退出，由外层运行器决定下个周期，自己不要无限循环。
+只在当前分支保存常规提交，禁止reset或丢弃历史，不伪造PR/CI；合并留待桌面针对精确提交WindowsCI及审查通过后执行。每轮记录实际修改、真实验证、未验证目标和费用unknown，然后退出交还宿主。认证/预算拒绝停止新任务；同故障三次重新分析。Subrouter用户已确认每日100CNY后台硬上限，实际费用unknown。两个已观察上游传输中断不是额度拒绝，禁止原样循环重启。

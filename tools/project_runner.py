@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Bounded local supervisor: run a few Codex task cycles, validate, stop. Stdlib only."""
-import argparse, contextlib, hashlib, json, os, shutil, signal, subprocess, sys, time
+import argparse, contextlib, hashlib, json, os, re, shutil, signal, subprocess, sys, time
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -9,6 +10,10 @@ DONE = {"DONE", "COMPLETE"}
 REQUIRED = ["orchestration/CONTINUE_TASK.md", "orchestration/BUDGET_POLICY.json",
             "tools/codex-task.ps1", "tools/build.ps1", "tools/test.ps1"]
 POLL, HEARTBEAT = 1.0, 10.0
+JOB_KEYS, JOB_REQUIRED = {"id", "task_file", "model", "max_budget_usd", "provider"}, {"id", "task_file", "model", "max_budget_usd"}
+JOB_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
+JOB_MODELS, JOB_PROVIDERS = ("haiku", "sonnet"), ("auto", "official", "subrouter")
+TASK_MAX_BYTES = 64 * 1024
 
 
 def now():
@@ -18,7 +23,8 @@ def now():
 def paths(root):
     d = Path(root) / "orchestration" / "local" / "runner"
     return {"dir": d, "state": d / "state.json", "stop": d / "STOP", "lock": d / "runner.lock",
-            "log": d / "runner.log"}
+            "log": d / "runner.log", "job_request": d / "job-request.json", "jobs": d / "jobs",
+            "validation": d / "validation.json"}
 
 
 def write_state(root, **kw):
@@ -113,6 +119,118 @@ def fingerprint(root, git):
         with contextlib.suppress(OSError):
             h.update((Path(root) / n.decode("utf-8", "surrogateescape")).read_bytes())
     return h.hexdigest()
+
+
+def write_json(path, data):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def is_under(path, base):
+    try:
+        path.relative_to(base)
+        return True
+    except ValueError:
+        return False
+
+
+def parse_job(root, data):
+    """Strictly validate a job request. Returns (normalized dict, resolved task path); raises ValueError(reason)."""
+    if not isinstance(data, dict):
+        raise ValueError("not_an_object")
+    if set(data) - JOB_KEYS:
+        raise ValueError("unknown_keys")
+    if JOB_REQUIRED - set(data):
+        raise ValueError("missing_keys")
+    jid, task = data["id"], data["task_file"]
+    model, provider, budget = data["model"], data.get("provider", "auto"), data["max_budget_usd"]
+    if not isinstance(jid, str) or not JOB_ID.fullmatch(jid):
+        raise ValueError("invalid_id")
+    if model not in JOB_MODELS:
+        raise ValueError("invalid_model")
+    if provider not in JOB_PROVIDERS:
+        raise ValueError("invalid_provider")
+    if isinstance(budget, bool) or not isinstance(budget, (int, float)) or not 0.01 <= budget <= 1.0:  # NaN fails too
+        raise ValueError("invalid_budget")
+    if not isinstance(task, str) or not task or Path(task).is_absolute():
+        raise ValueError("invalid_task_file")
+    base = Path(root).resolve() / "orchestration"
+    try:
+        target = (Path(root) / task).resolve(strict=True)  # follows symlinks before the containment check
+    except (OSError, RuntimeError, ValueError):
+        raise ValueError("task_file_not_found")
+    if target.suffix.lower() != ".md" or not target.is_file() or not is_under(target, base) \
+            or is_under(target, base / "local"):
+        raise ValueError("task_file_not_allowed")
+    if target.stat().st_size > TASK_MAX_BYTES:
+        raise ValueError("task_file_too_large")
+    return {"id": jid, "task_file": task, "model": model, "max_budget_usd": budget, "provider": provider}, target
+
+
+def take_job(root, ps, cycle):
+    """Consume the job request written by this cycle's agent. Returns (job, cmd) or (None, None).
+
+    Malformed or repeated requests raise ValueError before any developer run."""
+    req, rec = paths(root)["job_request"], paths(root)["jobs"]
+    if not req.exists():
+        return None, None
+    job, target = parse_job(root, json.loads(req.read_text("utf-8")))
+    jid = job["id"]
+    if (rec / f"{jid}.request.json").exists() or (rec / f"{jid}.result.json").exists():
+        raise ValueError("duplicate_id")
+    write_json(rec / f"{jid}.request.json", job)
+    write_json(rec / f"{jid}.result.json", {"id": jid, "status": "started", "cycle": cycle, "started_utc": now()})
+    req.unlink()  # consumed only now, after the agent process has exited
+    cmd = ps + [str(root / "tools/claude-task.ps1"), "-TaskFile", str(target), "-Model", job["model"],
+                "-MaxBudgetUsd", str(job["max_budget_usd"]), "-Provider", job["provider"]]
+    return job, cmd
+
+
+def finish_job(root, job, why, rc, cycle):
+    status = why if why != "ok" else ("ok" if rc == 0 else "failed")
+    write_json(paths(root)["jobs"] / f"{job['id']}.result.json",
+               {"id": job["id"], "status": status, "exit": rc, "cycle": cycle, "finished_utc": now()})
+
+
+def read_unit_xml(root):
+    """GoogleTest aggregate counts; None when missing or unreadable (never reported as zero)."""
+    x = Path(root) / "build/test-results/unit.xml"
+    if not x.is_file():
+        return None
+    try:
+        attrs = ET.parse(x).getroot().attrib
+        counts = {k: int(attrs[k]) for k in ("tests", "failures", "errors") if k in attrs}
+    except (ET.ParseError, OSError, ValueError):
+        return None
+    return counts or None
+
+
+def read_simulation_report(root, seed, policy):
+    path = Path(root) / f"build/test-results/simulation-{seed}-{policy}.out.log"
+    prefix = "AI_SURVIVORS_SIMULATION_REPORT "
+    lines = [line[len(prefix):] for line in path.read_text("utf-8").splitlines()
+             if line.startswith(prefix)]
+    if len(lines) != 1:
+        raise ValueError("missing_or_duplicate_simulation_report")
+    report = json.loads(lines[0])
+    if not isinstance(report, dict) or report.get("requested_seed") != seed or report.get("policy") != policy:
+        raise ValueError("simulation_report_request_mismatch")
+    return report
+
+
+def validation_report(root, git):
+    """Saved validation record plus whether it still matches the current source fingerprint."""
+    try:
+        rec = json.loads(paths(root)["validation"].read_text("utf-8"))
+    except FileNotFoundError:
+        rec = None
+    except (OSError, ValueError):
+        return {"record": None, "error": "unreadable", "current_source_matches": False}
+    matches = isinstance(rec, dict) and rec.get("source_fingerprint") == fingerprint(root, git)
+    return {"record": rec, "current_source_matches": matches}
 
 
 def kill_tree(proc):
@@ -214,24 +332,62 @@ def run(args, root=ROOT):
                 cycle_deadline = min(deadline, time.monotonic() + args.cycle_timeout)
                 steps = [("agent", ps + [str(root / "tools/codex-task.ps1"), "-TaskFile",
                                          str(root / "orchestration/CONTINUE_TASK.md"), "-Provider", args.provider]),
+                         ("developer", None),  # command comes from the agent's job request, if any
                          ("build", ps + [str(root / "tools/build.ps1")]),
                          ("test", ps + [str(root / "tools/test.ps1")])]
-                failed = None
+                simulations = {"simulation_1_kite": (1, "kite"),
+                               "simulation_2_kite": (2, "kite"),
+                               "simulation_2_stationary": (2, "stationary")}
+                if getattr(args, "simulations", False):
+                    steps.extend((name, ps + [str(root / "tools/simulate.ps1"), "-Seed", str(seed),
+                                             "-Policy", policy])
+                                 for name, (seed, policy) in simulations.items())
+                failed, exits, job_id, reports = None, {}, None, {}
                 for name, cmd in steps:
                     left = cycle_deadline - time.monotonic()
                     if left <= 0:
                         failed = 'cycle_timeout'
                         break
+                    job = None
+                    if name == "developer":
+                        try:
+                            job, cmd = take_job(root, ps, cycle)
+                        except (OSError, ValueError) as e:
+                            failed = f"job_request_invalid: {e}"
+                            break
+                        if job is None:
+                            continue  # no request: plain agent -> build -> test
+                        job_id = job["id"]
                     save(phase=name, cycle=cycle)
                     rc, why = bounded(cmd, left)
+                    if job is not None:
+                        finish_job(root, job, why, rc, cycle)
+                    exits[name] = rc if why == "ok" else None
                     if why != "ok" or rc != 0:
                         failed = f"{name}_{why}" if why != "ok" else f"{name}_exit_{rc}"
                         break
+                    if name in simulations:
+                        try:
+                            reports[name] = read_simulation_report(root, *simulations[name])
+                        except (OSError, ValueError) as e:
+                            failed = f"{name}_invalid_report: {type(e).__name__}"
+                            break
+                fp = None
+                if "build" in exits:  # build was reached, so this cycle leaves a validation record
+                    save(phase="validate", cycle=cycle)
+                    fp = fingerprint(root, git)
+                    write_json(p["validation"], {
+                        "status": "passed" if failed is None else "failed", "cycle": cycle,
+                        "timestamp_utc": now(), "provider": args.provider, "source_fingerprint": fp,
+                        "build_exit": exits.get("build"), "test_exit": exits.get("test"),
+                        "failure_reason": failed, "job_id": job_id,
+                        "unit_xml": read_unit_xml(root) if exits.get("test") == 0 else None,
+                        "simulation_reports": reports})
                 if failed:
                     reason = failed
                     break
                 save(phase="compare", cycle=cycle)
-                if fingerprint(root, git) == before:
+                if fp == before:
                     reason = "no_progress"
                     break
             else:
@@ -263,7 +419,10 @@ def main(argv=None):
     r.add_argument("--total-hours", type=bounded_num(float, 0, 24), default=4.0)
     r.add_argument("--provider", choices=("auto", "official", "subrouter"), default="auto",
                    help="controller provider; subrouter skips official quota entirely")
+    r.add_argument("--simulations", action="store_true",
+                   help="validate real JSON character seeds1/2 kite and seed2 stationary on the host")
     sub.add_parser("status", help="print saved status JSON")
+    sub.add_parser("validation", help="print saved validation record and whether it matches current source")
     sub.add_parser("stop", help="create STOP sentinel (kills nothing)")
     a = ap.parse_args(argv)
     p = paths(ROOT)
@@ -274,6 +433,13 @@ def main(argv=None):
             print("no runner state")
             return 1
         print(p["state"].read_text("utf-8"))
+        return 0
+    if a.cmd == "validation":
+        git = find_exe("git")
+        if not git:
+            print("git_not_found", file=sys.stderr)
+            return 2
+        print(json.dumps(validation_report(ROOT, git), indent=2, ensure_ascii=False))
         return 0
     p["dir"].mkdir(parents=True, exist_ok=True)
     p["stop"].write_text(now(), encoding="utf-8")

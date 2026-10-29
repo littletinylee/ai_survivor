@@ -17,10 +17,11 @@
   "unverified": [
     "normal_character_1200_second_balance",
     "P2-02b_Windows_CI",
-    "walk_animation"
+    "walk_animation",
+    "host_job_protocol_end_to_end"
   ],
-  "next": "Resume saved survival-policy task through Subrouter; Tripo canceled by user, continue2D project",
-  "reason": "First relay run ended on upstream TCP reset, worktree baseline intact and no orphan writers; controlled resume once after checkpoint",
-  "tests": "117 GoogleTest + native enemy/texture integration +2 cold starts PASS; enemy screenshot reviewed;13 runner tests and offline routing PASS",
+  "next": "Review and submit enemy variety plus host job protocol; then diagnose damage/upgrade timeline and charger-aware steering before another balance change",
+  "reason": "Host Windows toolchain works. Inner controller sandbox access limits are not global toolchain failures. Defensive card and slower wave experiments failed measured acceptance and were removed. Two Subrouter transport failures saved; no identical restart.",
+  "tests": "Host rebuild117/117 GoogleTest; native Headless;2 fresh cold starts PASS. Actual JSON seeds1/2 kite Lost615.683345647/623.033345794; seed2 stationary Lost25.133333836. All hashes match restored baseline. Runner22 cases21PASS1Windows symlink privilege skip; provider12 checks plus mock handoffs PASS.",
   "workspace": "E:/AI Survior/ai_survivor"
 }

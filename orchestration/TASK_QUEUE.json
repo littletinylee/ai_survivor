@@ -71,7 +71,8 @@
         "Fixed-seed actual JSON-character reports across several seeds",
         "Demonstrate normal-character 1200-second victory without fixture overrides; retain stationary/death baseline",
         "Record policy limitations, no false claim about human play quality"
-      ]
+      ],
+      "checkpoint": "Chaser/Charger/Brute implemented and baseline117 locally verified. Defensive upgrade and reduced-wave-pressure experiments failed acceptance and were removed; no normal1200s win. Host tools work; only inner sandbox had SCons/AppData/child-network restrictions. New host developer-job protocol avoids these restrictions without changing sandbox. Next measure damage/upgrade timeline and charger-aware steering; do not repeat rejected experiments."
     },
     {
       "id": "P3-01",
