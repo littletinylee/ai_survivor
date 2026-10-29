@@ -1,0 +1,35 @@
+{
+  "controller": "Codex gpt-6.1-sol",
+  "primary": {
+    "provider": "Claude Code",
+    "requested_model": "claude-haiku-5-5 / claude-sonnet-5-5",
+    "status": "READY",
+    "reason": "Official claude.ai Pro OAuth verified. Haiku real file-edit task and Sonnet probe succeeded. Use --setting-sources project to exclude global OpenRouter overrides.",
+    "launcher": "tools/claude-task.ps1",
+    "tasks": {
+      "simple": "haiku",
+      "normal": "sonnet",
+      "complex": "opus (not probed; only on justified need)"
+    }
+  },
+  "fallback": {
+    "provider": "DeepSeek Harness",
+    "model": "deepseek-flash",
+    "probe": "READY",
+    "implementation": "FILE_ONLY_VERIFIED: real patch completed, CLI exit 0, Windows 21 tests and Headless PASS"
+  },
+  "subrouter": {
+    "retries": 1,
+    "codex": "gpt-6.1-sol (CLI verified)",
+    "claude": "claude-haiku-5-5 (CLI verified); sonnet/opus mappings configured, not CLI probed",
+    "desktop_chat_migration": false,
+    "status": "READY",
+    "base_url": "https://asiasouth.up.railway.app/v1",
+    "launchers": [
+      "tools/claude-task.ps1 -Provider auto",
+      "tools/codex-task.ps1 -Provider auto",
+      "tools/codex-subrouter.ps1"
+    ],
+    "secret_location": "orchestration/local/subrouter.json (gitignored)"
+  }
+}

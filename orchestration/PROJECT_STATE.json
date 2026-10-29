@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "phase": 0,
+  "status": "IN_PROGRESS",
+  "date": "2026-10-29",
+  "branch": "feat/phase0-bootstrap",
+  "remote": "git@github.com:littletinylee/ai_survivor.git",
+  "completed": [
+    "environment_probe",
+    "ssh_repository_read",
+    "architecture",
+    "agents_policy",
+    "engine_download_checksum",
+    "dependency_commit_selection",
+    "deepseek_availability_probe"
+  ],
+  "unverified": [
+    "windows_ci",
+    "phase1_gameplay"
+  ],
+  "next": "Verify Windows CI cold-start mitigation, then mark Phase0/character/combat tasks accepted and implement P1-03 experience/cards",
+  "reason": "Upstream Godot editor documentation shutdown race identified; bounded frame-delay mitigation plus true cold-start regression passed locally, no cache seeding or ignored errors.",
+  "tests": "52 GoogleTest PASS; cached Headless PASS; 3 independent cold first-import + native integration PASS; Windows CI pending mitigation rerun",
+  "workspace": "E:/AI Survior/ai_survivor"
+}

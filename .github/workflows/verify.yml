@@ -1,0 +1,65 @@
+name: Native build and integration
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11.9'
+      - name: Install SCons and pinned Godot
+        shell: pwsh
+        run: ./tools/setup.ps1
+      - name: Bounded runner tests (no model calls)
+        run: python -m unittest discover -s tests/integration -p test_project_runner.py -v
+      - name: Provider routing tests (offline)
+        shell: pwsh
+        run: ./tests/integration/provider-routing.ps1
+      - name: Toolchain inventory
+        shell: pwsh
+        run: |
+          $required = '14.51.36231'
+          try {
+            $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+            if (!(Test-Path $vswhere)) { throw "vswhere not found at $vswhere" }
+            $vs = & $vswhere -latest -products * -property installationPath
+            if (!$vs) { throw 'vswhere found no Visual Studio installation' }
+            $msvcRoot = Join-Path $vs 'VC/Tools/MSVC'
+            $names = @(Get-ChildItem $msvcRoot -Directory | ForEach-Object { $_.Name })
+            Write-Host "::notice::installed MSVC=$($names -join ',')"
+            if ($names -notcontains $required) {
+              throw "Required pinned MSVC $required is missing; installed: $($names -join ',')"
+            }
+          } catch {
+            Write-Host "::error::$($_.Exception.Message)"
+            throw
+          }
+      - name: Build
+        shell: pwsh
+        run: ./tools/build.ps1 -Jobs 4 -Toolset 14.51.36231
+      - name: Unit and headless integration
+        shell: pwsh
+        run: |
+          try {
+            ./tools/test.ps1
+          } catch {
+            Write-Host "::error::$($_.Exception.Message)"
+            Get-ChildItem build/test-results -Filter '*.log' | ForEach-Object {
+              $message = ([string](Get-Content $_.FullName -Raw)).Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+              Write-Host "::error file=$($_.Name)::$message"
+            }
+            throw
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: build/test-results/
