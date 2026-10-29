@@ -14,6 +14,6 @@
   "xp_multiplier": 1.0,
   "pickup_radius": 80,
   "initial_weapon_id": "bubble_shot",
-  "passive_id": "deep_dive",
-  "passive_description": "深潜：占位被动，尚未实现任何效果。"
+  "passive_id": "free_rice",
+  "passive_description": "吃白饭：每拾取100点经验（计入倍率），回复最大生命值3%；余量保留，满血不储存回复。"
 }

@@ -8,6 +8,6 @@
 
 每周期只做一次明确决策：审查上一轮宿主结果，更新 PROJECT_STATE/HANDOFF/TASK_QUEUE，再为一个小任务写 orchestration/ 下的任务说明及 local/runner/job-request.json，然后退出。请求只含唯一id、task_file、model haiku或sonnet、max_budget_usd0.01到1、provider auto。宿主会在你退出后启动Claude，接着build/test和固定种子模拟。禁止在你本进程里调用外部开发者。简单任务Haiku优先，常规Sonnet，预算拒绝或开发失败不得同任务改id盲重试。需要DeepSeek时保存剩余任务并退出等待桌面处理，两个开发通道都不可用置PAUSED。
 
-当前受控批次（runner state的max_cycles=2）优先级：P2-02-charger-aware-task.md，第一周期为该任务写唯一id charger-aware-bot-v1、model haiku、max_budget_usd0.25、provider auto 的请求后立即退出。若该id已有结果则先审查，不能重发。第二周期只审查宿主报告，更新断点后退出，不新开实验；混合/退步必须记录不接受，不能写平衡已通过。后续常规批次max_cycles=6则根据最新next选择一个新的有验收标准任务，禁止重复此固定id或已失败实验。当前分支codex/charger-aware-bot，PR7已合并main。防御选卡95/.75/armor85及慢刷怪实验均失败撤回，禁止重复。保持三类武器、6武器/对象上限、暂停/升级冻结和stationary死亡基线。正常胜利必须真实1200秒，不用高HP夹具/缩短时间。完整Phase0–5仍待推进。
+根据最新PROJECT_STATE.next选一个有验收标准的短任务，禁止重复已完成/失败请求。用户已将默认被动定名吃白饭，free_rice每100实际拾取XP回复当前maxHP3%，不要改回深潜。P3被动137测试/原生界面已由桌面验证；后续额外角色、动画、音画、性能、设置、打包等仍未完成。防御选卡、慢刷怪、charger-aware-bot-v1三个平衡实验已撤回，禁止继续猜调常量。下一开发顺序为P2-02-health-metrics-task.md，然后P2-02-balance-timeline-task.md，再由Codex读取实际报告分析；不得仅因结构测试passed就称平衡通过。若任务ID已有结果，先审查，不能重发。保持三类武器、6武器/对象上限、暂停/升级冻结。正常胜利必须真实1200秒，不用高HP夹具/缩短时间。完整Phase0–5继续。
 
-只在当前分支保存常规提交，禁止reset或丢弃历史，不伪造PR/CI；合并留待桌面针对精确提交WindowsCI及审查通过后执行。每轮记录实际修改、真实验证、未验证目标和费用unknown，然后退出交还宿主。认证/预算拒绝停止新任务；同故障三次重新分析。Subrouter用户已确认每日100CNY后台硬上限，实际费用unknown。两个已观察上游传输中断不是额度拒绝，禁止原样循环重启。
+内层沙箱已观察到.git/index.lock写入拒绝，不要反复尝试git commit或绕过权限；常规提交由宿主桌面保存。禁止reset或丢弃历史，不伪造PR/CI；合并留待桌面针对精确提交WindowsCI及审查通过后执行。每轮记录实际修改、真实验证、未验证目标和费用unknown，然后退出交还宿主。认证/预算拒绝停止新任务；同故障三次重新分析。Subrouter用户已确认每日100CNY后台硬上限，实际费用unknown。两个历史上游传输中断后，新的2周期宿主协议已实际成功；若再传输失败，保存断点分析，禁止原样循环重启。

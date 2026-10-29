@@ -56,3 +56,9 @@ Subrouter runner PID29232已于07:49:41UTC终止，reasonagent_exit_1；结构�
 
 宿主最终重编译117/117、native Headless和2新目录cold PASS；真实JSON615.683345647/623.033345794/25.133333836，hash全部恢复原基线。runner22用例21PASS1权限skip；provider12检查+mock交接PASS。下一步当前敌人/宿主协议提交PR精确WindowsCI，通过后才合并。费用unknown，Subrouter用户100CNY/day后台硬限额仍为确认依据。
 PR#7在7f9cded推送40843550847和PR40843589584双WindowsCI成功及审查后合并main003422ca2c127f18bd1951e731f05bfdaef10635。新分支codex/charger-aware-bot，任务P2-02-charger-aware-task.md。新的短总控/宿主交接协议仅计划一次2周期受控验证；内层不启动Claude或验证进程，第一周期请求Haiku0.25，宿主真实验证，第二周期审查后停止。若传输再失败保存诊断，不原样重启。预算确认100CNY/day，实际费用unknown。
+
+2026-10-29 Subrouter 短批次第2周期：审查 `charger-aware-bot-v1` 结构化宿主结果，`source_fingerprint` 匹配。宿主 120/120 单测、native Headless、2 次冷启动均通过，说明结构验证通过；但真实 JSON kite seed1/2 为 Lost 512.800010256/546.183344257 秒，均较基线 615.683345647/623.033345794 退步，stationary seed2 仍为 Lost 25.133333836。候选实验拒绝，不合并、不宣称平衡通过，不重复该 id 或启动新实验。宿主协议端到端已验证；本批次停止。代码工作树保留宿主候选修改，未由本轮 Codex 修改或提交。费用 unknown。
+
+2026-10-29 Subrouter 短批次第1周期：审查宿主结构化记录，source_fingerprint 匹配；117/117、native Headless、2 cold starts 通过。真实固定种子仍为 kite seed1 Lost 615.683345647、seed2 Lost 623.033345794、stationary seed2 Lost 25.133333836，故正常角色1200秒胜利未验收。未发现 `charger-aware-bot-v1` 历史结果；已写入唯一宿主请求，模型 Haiku、预算 USD 0.25、provider auto，等待宿主开发和验证。费用 unknown；不得把 passed 结构验证写成平衡通过。尝试保存常规提交时 `.git/index.lock` 写权限被拒，未提交；未绕过权限。宿主接手后继续该请求。
+两周期runner35832以max_cycles成功退出，无遗留外部写入者；宿主协议端到端已验证。charger-aware候选120/native2cold通过但512.80/546.18秒退步，已保存local patch/validation并撤回3文件。三次平衡实验均未达目标，停止盲调，后续先伤害/经验时序诊断。用户将被动改为吃白饭并授权自行设计；按既有Phase3任务实现每100实际拾取XP回复当前maxHP3%，余量保留、满血不存回复、死亡优先。新分支codex/free-rice-passive，Claude Sonnet实现纯核心和测试，之后Haiku原生显示。默认1200秒仍未证明。
+用户明确被动为吃白饭（不再深潜），Sonnet核心实现，Haiku原生选人规则/HUD；Codex审查改进参数校验、fmod余量与治疗比例独立于饱和计数。137/137+native+2cold通过，选人/战斗截图已检查，满血不存治疗/死亡优先/冻结重开有回归。实际JSON613.466678936/560.300011206 Lost，stationary25.133333836和hash不变；并非20分钟平衡完成。下一步PR精确CI再合并；后续先伤害/回复/选卡时序诊断，不再猜调策略。Sonnet列表估价0.5711429USD、Haiku0.01270948USD，实际费用unknown，Subrouter100CNY/day后台硬限额仍依用户确认。

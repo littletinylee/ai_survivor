@@ -1,0 +1,7 @@
+# Planned P2-02f: bounded real-run timeline and evidence
+
+Prerequisite health_metrics stageA validated with unchanged gameplay hashes. This stage observes; do not tune bot/card/passive/weapon/enemy values. File edits only run_simulation.h/.cpp, native simulation-report serialization in ai_survivors_bootstrap.cpp, tests/simulation/full_run_test.cpp, tools/simulate.ps1 and docs/SIMULATION.md if necessary. No shell, orchestration or user settings.
+
+Add at most22 simulation samples: start, each60 combat seconds reached, and terminal (avoid duplicates). Each records time, HP/maxHP, armor, level, cards, kills, XP gained, passive progress/proc count and cumulative HealthMetrics values including damage by enemy kind. Add compact totals for HP-card offers seen, HP cards selected and HP offers declined while healthy; derive these only from actual offers/accepted choices, not synthetic grants. This is diagnostic data only; use no RNG and mutate no gameplay objects.
+
+Export bounded arrays/totals through real JSON reports. Validate finite numbers, monotone sample time/cumulative totals, final sample matching terminal metrics, and caps in unit tests plus simulate.ps1. Keep report backward fields and trace_hash algorithm unchanged. Preserve real seed1/2 kite hashes c3dcdf2b24529355/793dd79d12a2825c and stationary184747d172b838a9 exactly. Host validates actual reports, then Codex writes an evidence-based diagnosis before any fourth balance experiment. A Lost report can pass structural checks but cannot prove1200s balance. No extra unbounded per-frame logs.

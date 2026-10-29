@@ -30,6 +30,13 @@ RunStepResult advance_run(GameStateManager &states, GameTimer &timer,
     if (states.state() == GameState::kPlaying) {
         progression.ingest_and_collect(states.state(), world.take_kill_events(),
                                        player.position());
+        // Food heals in the same frame, before any offer can freeze the run,
+        // so a full-HP proc is consumed here rather than banked.
+        const double requested =
+            progression.take_passive_heal(states.state(), world.max_hp());
+        if (requested > 0.0) {
+            world.heal(states.state(), requested);
+        }
         out.upgrade = prepare_next_upgrade(states, progression);
     }
     out.status = states.state() == GameState::kWon    ? RunStepStatus::kWon

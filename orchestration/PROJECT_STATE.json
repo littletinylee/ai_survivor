@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "phase": 2,
+  "phase": 3,
   "status": "IN_PROGRESS",
   "date": "2026-10-29",
-  "branch": "codex/charger-aware-bot",
+  "branch": "codex/free-rice-passive",
   "remote": "git@github.com:littletinylee/ai_survivor.git",
   "completed": [
     "environment_probe",
@@ -17,11 +17,11 @@
   "unverified": [
     "normal_character_1200_second_balance",
     "walk_animation",
-    "host_job_protocol_end_to_end",
-    "charger_aware_bot_candidate"
+    "additional_characters",
+    "free_rice_Windows_CI"
   ],
-  "next": "Controlled2cycle short Subrouter controller: enqueue Haiku charger-aware steering; host validate; second controller reviews actual reports",
-  "reason": "PR7 exact head7f9cded passed push40843550847 andPR40843589584 WindowsCI; reviewed and merged003422ca2c127f18bd1951e731f05bfdaef10635. New host handoff avoids inner sandbox restrictions; no identical restart after2transport failures.",
-  "tests": "Host rebuild117/117 GoogleTest; native Headless;2 fresh cold starts PASS. Actual JSON seeds1/2 kite Lost615.683345647/623.033345794; seed2 stationary Lost25.133333836. All hashes match restored baseline. Runner22 cases21PASS1Windows symlink privilege skip; provider12 checks plus mock handoffs PASS.",
+  "next": "Submit 吃白饭 passive PR and exact-head WindowsCI; then instrument damage/healing/XP/card timeline before more balance changes",
+  "reason": "User-named passive implemented by Sonnet, UI by Haiku, Codex reviewed numeric bounds and runtime ordering.100 actual collected XP ->3% current maxHP; no bank/no revive. P2 balance remains open; new passive is a Phase3 feature, not a claimed balance fix.",
+  "tests": "Host build137/137 GoogleTest; native Headless and2fresh cold starts PASS; selection and battle screenshots reviewed. Actual JSON seed1/2 kite Lost613.466678936/560.300011206; stationary25.133333836 unchanged. Same reports repeated after final edits. No normal1200s win.",
   "workspace": "E:/AI Survior/ai_survivor"
 }

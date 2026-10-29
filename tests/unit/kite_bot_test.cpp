@@ -27,8 +27,8 @@ CharacterDefinition fish() {
     c.crit_chance = 0.05;
     c.pickup_radius = 80.0;
     c.initial_weapon_id = "bubble_shot";
-    c.passive_id = "deep_dive";
-    c.passive_description = "placeholder";
+    c.passive_id = "free_rice";
+    c.passive_description = "mirrors the fish JSON";
     return c;
 }
 

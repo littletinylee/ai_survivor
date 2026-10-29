@@ -568,6 +568,16 @@ bool CombatWorld::spawn_enemy(const EnemySpawn &spec) {
     return enemies_.spawn(spec, config_.enemy_radius);
 }
 
+double CombatWorld::heal(GameState state, double amount) {
+    if (state != GameState::kPlaying || !std::isfinite(amount) || amount <= 0.0 ||
+        !(hp_ > 0.0)) {
+        return 0.0;
+    }
+    const double before = hp_;
+    hp_ = std::min(stats_.max_hp, hp_ + amount);
+    return std::max(0.0, hp_ - before);
+}
+
 bool CombatWorld::update_player_stats(const CombatStats &stats,
                                       double weapon_damage_scale) {
     if (!std::isfinite(stats.max_hp) || !std::isfinite(stats.armor) ||
