@@ -25,3 +25,5 @@ P1-02已由Sonnet实现并经Codex52单测/缓存目录Headless/战斗截图验�
 Windows推送与PR CI均在0d58b1f完成success。PR#1已验收并合并main，merge=dbead02acaff65c2e860fa6c313f5a8fe3efc63f，未绕过检查。新分支feat/experience-upgrades开始P1-03；P0-01/P1-01/P1-02已DONE。现有玩法还没有经验和卡片，继续纯C++实现。
 
 P1-03经验/三选一/连续升级已实现并本地80单测、Headless(含真实经验拾取升级)及2冷启动通过，截图已看。卡片应用使用generation+ID拒绝重复/旧回调，泡泡弹升级有效；六槽库存/容量过滤有测试，但真实攻击仍只泡泡弹，无效未实现武器不会出现。此轮Sonnet编写，Codex补TextServer/Texture2D绑定依赖并修数值边界。下一步WindowsCI/PR合并，再完整20分钟战斗+经验+卡片模拟（不能拿仅计时模拟替代）。
+
+PR#2已在dfafce1推送/PR双CI成功后合并main（699d24c94974709978bad587daf26ee351a983c7）。P1-03 DONE，新分支feat/full-run-simulation做P1-04。要求模拟与实际场景复用同一纯C++帧顺序和升级应用逻辑；正常鱼AI平衡与受控胜利夹具分开报告，不能拿无敌参数或仅计时测试冒充正常20分钟体验。

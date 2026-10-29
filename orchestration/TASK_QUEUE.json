@@ -33,7 +33,7 @@
     {
       "id": "P1-03",
       "title": "Experience and upgrade cards",
-      "status": "LOCAL_VERIFIED_PENDING_CI",
+      "status": "DONE",
       "acceptance": [
         "Kills drop collectable experience",
         "Continuous upgrades queue correctly",
@@ -43,7 +43,7 @@
     {
       "id": "P1-04",
       "title": "Complete run loop",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "acceptance": [
         "Menu and character select lead to gameplay",
         "Zero HP loses",

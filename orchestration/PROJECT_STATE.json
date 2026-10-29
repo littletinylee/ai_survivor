@@ -3,7 +3,7 @@
   "phase": 1,
   "status": "IN_PROGRESS",
   "date": "2026-10-29",
-  "branch": "feat/experience-upgrades",
+  "branch": "feat/full-run-simulation",
   "remote": "git@github.com:littletinylee/ai_survivor.git",
   "completed": [
     "environment_probe",
@@ -18,8 +18,8 @@
     "experience_cards",
     "complete_run_balance"
   ],
-  "next": "Verify P1-03 Windows CI and merge; implement P1-04 fixed-seed full combat/progression simulation and balance",
-  "reason": "XP pickups, queued valid upgrade choices and effective runtime stats implemented; unsupported weapons excluded from offers",
-  "tests": "80 GoogleTest PASS; native progression Headless PASS; 2 cold-start fixtures PASS; upgrade screenshot inspected; new branch Windows CI pending",
+  "next": "P1-04 shared pure-C++ frame orchestration and fixed-seed full combat/progression simulation; report default-character balance separately from controlled victory fixture",
+  "reason": "PR#2 merged at699d24c after both CI runs success ondfafce1",
+  "tests": "80 GoogleTest + native Headless + 2 cold-start fixtures PASS locally and in Windows push/PR CI",
   "workspace": "E:/AI Survior/ai_survivor"
 }
