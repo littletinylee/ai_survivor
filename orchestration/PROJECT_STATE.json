@@ -18,8 +18,8 @@
     "windows_ci",
     "phase1_gameplay"
   ],
-  "next": "Verify pinned Windows CI, then implement P1-02 enemy pursuit and automatic projectile combat",
-  "reason": "User explicitly scoped current acceptance to Windows only. Linux is deferred, not a blocker.",
-  "tests": "Windows build PASS; 32 GoogleTest PASS; native Headless PASS; menu/select/battle/pause screenshots inspected; hosted Windows CI pending",
+  "next": "Fix reproducible first-import native extension crash on Windows; then P1-03 experience and upgrade cards",
+  "reason": "Combat is implemented locally; fresh-install smoke revealed cached editor state masks startup failure. No main merge.",
+  "tests": "52 GoogleTest PASS; cached Windows Headless PASS; combat screenshot inspected; fresh first import and Windows CI FAIL access violation",
   "workspace": "E:/AI Survior/ai_survivor"
 }

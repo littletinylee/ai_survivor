@@ -18,3 +18,6 @@ Claude 官方通道验证：Haiku5.5 探针 READY，Haiku 真实读写任务退�
 
 2026-10-29 Phase1-01：Sonnet实现CharacterDefinition/Registry、PlayerController、JSON角色加载、菜单/选择/战场/暂停；Codex审查修复UTF-8显示并增加滚动角色列表。Windows本机编译通过，32项GoogleTest和原生Headless集成通过。menu/select/battle/pause四张1100x680自动截图已检查，中文清晰、按钮无裁切、鱼形原创占位正常。当前无战斗/敌人/经验。
 WindowsCI编译器库存实际证据run40767419942：14.29.30133、14.44.35207、14.51.36231；现显式允许CI14.51.36231、本机14.50.35717，SConstruct拒绝其他版本，未自动升级依赖。
+
+2026-10-29 P1-02：Sonnet完成纯C++CombatWorld、EnemyManager、WeaponManager、ProjectileSystem、DamageSystem、WaveDirector；敌人追击、自动瞄准泡泡、接触伤害冷却、击杀事件、死亡/胜利覆盖层已接入。Codex实测本机构建、52项GoogleTest及现有缓存目录的Headless集成通过；build/combat00000089.png截图可见敌人、泡泡和击杀2。未实现经验/卡片。
+新发现的启动回归：将最少运行文件复制到全新项目内build/clean-import-check，第一次Godot编辑器导入退出-1073741819，第二次退出0；无扩展plain-engine-check首次导入0。远端WindowsCI run40768586994同样首次导入访问冲突，不能将缓存目录成功等同于全新安装成功。SDK10.0.0-stable对照仍首次导入失败，已恢复原锁定commit1b089f2，未更改依赖。

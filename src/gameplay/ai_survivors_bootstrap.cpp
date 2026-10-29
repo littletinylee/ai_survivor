@@ -243,8 +243,9 @@ void AISurvivorsBootstrap::build_ui() {
                24, false);
 
     pause_panel_ = make_panel(battle_panel_, "PausePanel");
-    make_label(pause_panel_, "已暂停", 48, 0, 190, 1100, 70, true);
+    overlay_title_ = make_label(pause_panel_, "已暂停", 48, 0, 190, 1100, 70, true);
     Button *resume = make_button(pause_panel_, "继续", 26, 400, 280, 300, 56);
+    resume_button_ = resume;
     resume->connect("pressed",
                     callable_mp(this, &AISurvivorsBootstrap::on_resume_pressed));
     Button *restart = make_button(pause_panel_, "重新开始", 26, 400, 350, 300, 56);
@@ -280,8 +281,17 @@ void AISurvivorsBootstrap::show_screen(Screen screen) {
     menu_panel_->set_visible(screen == Screen::kMenu);
     select_panel_->set_visible(screen == Screen::kCharacterSelect);
     battle_panel_->set_visible(screen == Screen::kBattle);
-    pause_panel_->set_visible(screen == Screen::kBattle &&
-                              states_.state() == GameState::kPaused);
+    const GameState st = states_.state();
+    const bool overlay = screen == Screen::kBattle &&
+                         (st == GameState::kPaused || st == GameState::kWon ||
+                          st == GameState::kLost);
+    pause_panel_->set_visible(overlay);
+    if (overlay) {
+        overlay_title_->set_text(String::utf8(st == GameState::kLost  ? "失败"
+                                              : st == GameState::kWon ? "胜利"
+                                                                      : "已暂停"));
+        resume_button_->set_visible(st == GameState::kPaused);
+    }
     queue_redraw();
 }
 
@@ -298,7 +308,10 @@ void AISurvivorsBootstrap::start_battle(const std::string &character_id) {
     states_.start_run();
     player_.reset();
     player_.set_move_speed(character->move_speed);
-    hp_ = character->max_hp;
+    // Fixed base seed plus a per-session run counter: reproducible, yet
+    // restarts are not identical copies.
+    world_ = std::make_unique<CombatWorld>(CombatStats::from_character(*character),
+                                           0xA15D0000ULL + run_counter_++);
     facing_ = 1.0;
     escape_was_down_ = key_down(godot::KEY_ESCAPE);
     show_screen(Screen::kBattle);
@@ -306,14 +319,30 @@ void AISurvivorsBootstrap::start_battle(const std::string &character_id) {
 }
 
 void AISurvivorsBootstrap::refresh_battle_ui() {
-    if (active_character_ == nullptr || !timer_ || battle_label_ == nullptr) {
+    if (active_character_ == nullptr || !timer_ || !world_ ||
+        battle_label_ == nullptr) {
         return;
     }
     const int elapsed = static_cast<int>(timer_->elapsed_seconds());
-    char buf[96];
-    std::snprintf(buf, sizeof(buf), "  HP %.0f/%.0f   时间 %02d:%02d / 20:00",
-                  hp_, active_character_->max_hp, elapsed / 60, elapsed % 60);
+    char buf[128];
+    std::snprintf(buf, sizeof(buf),
+                  "  HP %.0f/%.0f   击杀 %u   时间 %02d:%02d / 20:00",
+                  std::ceil(world_->hp()), world_->max_hp(), world_->kill_count(),
+                  elapsed / 60, elapsed % 60);
     battle_label_->set_text(to_godot(active_character_->name) + String::utf8(buf));
+}
+
+void AISurvivorsBootstrap::simulate_battle(double seconds) {
+    const double step = 1.0 / 60.0;
+    for (double t = 0.0; t < seconds && states_.state() == GameState::kPlaying;
+         t += step) {
+        world_->tick(states_, step, player_.position());
+        if (states_.state() == GameState::kPlaying) {
+            timer_->advance(step);
+        }
+    }
+    show_screen(Screen::kBattle);
+    refresh_battle_ui();
 }
 
 void AISurvivorsBootstrap::on_start_pressed() {
@@ -326,6 +355,7 @@ void AISurvivorsBootstrap::on_start_pressed() {
 void AISurvivorsBootstrap::on_back_to_menu_pressed() {
     states_ = GameStateManager();
     timer_.reset();
+    world_.reset();
     active_character_ = nullptr;
     show_screen(Screen::kMenu);
 }
@@ -350,7 +380,8 @@ void AISurvivorsBootstrap::on_character_pressed(int index) {
 }
 
 void AISurvivorsBootstrap::_physics_process(double delta) {
-    if (screen_ != Screen::kBattle || !timer_ || active_character_ == nullptr) {
+    if (screen_ != Screen::kBattle || !timer_ || !world_ ||
+        active_character_ == nullptr) {
         return;
     }
     const bool escape_down = key_down(godot::KEY_ESCAPE);
@@ -372,9 +403,17 @@ void AISurvivorsBootstrap::_physics_process(double delta) {
     if (key_down(godot::KEY_S) || key_down(godot::KEY_DOWN)) iy += 1.0;
 
     if (states_.state() == GameState::kPlaying) {
-        timer_->advance(delta);
         if (player_.step(states_.state(), delta, ix, iy) && ix != 0.0) {
             facing_ = ix > 0.0 ? 1.0 : -1.0;
+        }
+        // Death has priority over victory: combat runs before the single
+        // survival clock, which only advances if the run is still Playing.
+        world_->tick(states_, delta, player_.position());
+        if (states_.state() == GameState::kPlaying) {
+            timer_->advance(delta);
+        }
+        if (states_.state() != GameState::kPlaying) {
+            show_screen(Screen::kBattle); // defeat / victory overlay
         }
     }
     refresh_battle_ui();
@@ -392,6 +431,28 @@ void AISurvivorsBootstrap::_draw() {
               Color(0.05f, 0.12f, 0.20f, 1.0f), true);
     draw_rect(godot::Rect2(center - half, half * 2.0f),
               Color(0.35f, 0.65f, 0.85f, 1.0f), false, 3.0f);
+
+    if (world_) {
+        const Color coral(0.95f, 0.32f, 0.28f, 1.0f);
+        const Color coral_edge(0.45f, 0.05f, 0.08f, 1.0f);
+        for (const Enemy &e : world_->enemies()) {
+            const Vector2 ep =
+                center + Vector2(static_cast<float>(e.position.x),
+                                 static_cast<float>(e.position.y));
+            draw_circle(ep, static_cast<float>(e.radius), coral);
+            draw_arc(ep, static_cast<float>(e.radius), 0.0f, 6.2831853f, 24,
+                     coral_edge, 3.0f);
+        }
+        for (const Projectile &b : world_->projectiles()) {
+            const Vector2 bp =
+                center + Vector2(static_cast<float>(b.position.x),
+                                 static_cast<float>(b.position.y));
+            draw_circle(bp, static_cast<float>(b.radius),
+                        Color(0.30f, 0.95f, 1.0f, 0.9f));
+            draw_arc(bp, static_cast<float>(b.radius), 0.0f, 6.2831853f, 16,
+                     Color(0.85f, 1.0f, 1.0f, 1.0f), 2.0f);
+        }
+    }
 
     const Vector2 p =
         center + Vector2(static_cast<float>(player_.position().x),
@@ -459,9 +520,40 @@ bool AISurvivorsBootstrap::run_native_checks() {
     const bool in_battle = screen_ == Screen::kBattle &&
                            states_.state() == GameState::kPlaying &&
                            battle_label_->get_text().length() > 0;
-    on_back_to_menu_pressed();
-    if (!in_battle) {
+    if (!in_battle || !world_ || world_->hp() != fish->max_hp) {
+        on_back_to_menu_pressed();
         return fail("battle scene did not start for loaded character");
+    }
+
+    // Seeded ticks (10 s of fixed steps) must produce enemies and shots.
+    bool saw_enemy = false;
+    bool saw_shot = false;
+    for (int i = 0; i < 600 && states_.state() == GameState::kPlaying; ++i) {
+        world_->tick(states_, 1.0 / 60.0, player_.position());
+        saw_enemy = saw_enemy || !world_->enemies().empty();
+        saw_shot = saw_shot || !world_->projectiles().empty();
+    }
+    const bool combat_ok = saw_enemy && saw_shot;
+    on_back_to_menu_pressed();
+    if (!combat_ok) {
+        return fail("seeded combat produced no enemies or projectiles");
+    }
+
+    // Lethal contact must move the run to the terminal Lost state.
+    GameStateManager death_states;
+    death_states.start_run();
+    CombatStats fragile;
+    fragile.max_hp = 1.0;
+    CombatWorld doomed(fragile, 1);
+    EnemySpawn killer;
+    killer.position = Vec2{0.0, 0.0};
+    killer.speed = 0.0;
+    killer.contact_damage = 50.0;
+    if (!doomed.spawn_enemy(killer) ||
+        doomed.tick(death_states, 1.0 / 60.0, Vec2{}) !=
+            CombatWorld::TickResult::kPlayerDied ||
+        death_states.state() != GameState::kLost) {
+        return fail("lethal contact did not reach the Lost state");
     }
     return true;
 }
@@ -596,6 +688,8 @@ void AISurvivorsBootstrap::_ready() {
         // Normal scene stays open until the window is closed.
         if (visual_battle && load_error_.empty()) {
             start_battle(registry_.characters().front().id);
+            // Deterministic warm-up so the screenshot shows a populated arena.
+            if (world_) simulate_battle(1.0);
             if (visual_pause) { states_.pause(); show_screen(Screen::kBattle); }
         } else if (visual_select && load_error_.empty()) {
             on_start_pressed();

@@ -7,15 +7,19 @@
 #include <godot_cpp/classes/label.hpp>
 #include <godot_cpp/classes/node2d.hpp>
 
+#include <cstdint>
+
 #include "core/character.h"
+#include "core/combat.h"
 #include "core/game_state.h"
 #include "core/game_timer.h"
 #include "core/player_controller.h"
 
 namespace ai_survivors {
 
-// Phase 1-01 scene layer: main menu -> character selection -> battle arena
-// with movement only. There is no combat, XP or enemies yet.
+// Phase 1-02 scene layer: main menu -> character selection -> battle arena
+// with movement and automatic combat (CombatWorld). There is no XP or cards
+// yet; kill events carry an XP payload that nothing consumes.
 //
 // Characters come from the pure C++ CharacterRegistry, loaded from the JSON
 // files in res://data/characters. Invalid data is reported loudly and never
@@ -45,6 +49,9 @@ private:
     void show_screen(Screen screen);
     void start_battle(const std::string &character_id);
     void refresh_battle_ui();
+    // Advances movement-less combat and the survival clock in fixed steps
+    // using the same order as _physics_process (combat, then timer if Playing).
+    void simulate_battle(double seconds);
 
     void on_start_pressed();
     void on_back_to_menu_pressed();
@@ -62,7 +69,8 @@ private:
                              1.0};
     const CharacterDefinition *active_character_ = nullptr;
     double facing_ = 1.0;
-    double hp_ = 0.0;
+    std::unique_ptr<CombatWorld> world_;
+    std::uint64_t run_counter_ = 0;
     bool escape_was_down_ = false;
     Screen screen_ = Screen::kMenu;
 
@@ -82,6 +90,8 @@ private:
     godot::Control *pause_panel_ = nullptr;
     godot::Control *character_list_ = nullptr;
     godot::Control *start_button_ = nullptr;
+    godot::Label *overlay_title_ = nullptr;
+    godot::Control *resume_button_ = nullptr;
 };
 
 } // namespace ai_survivors

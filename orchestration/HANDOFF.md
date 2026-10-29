@@ -17,3 +17,5 @@ Subrouter备用已接通（用户确认Key后台每日100CNY硬限额）。Claud
 优先级覆盖：用户要求当前仅Windows，停止Linux排障。独立运行器首轮已terminal agent_stop且PID不存在，当前Goal接管；下一任务打通WindowsCI然后Phase1，不得重启Linux排障。
 
 Phase1-01本机已验收（32测试+Headless+4截图），云端WindowsCI待确认；代码角色/移动/菜单已接入，禁止声称完整游戏。下一步P1-02自动攻击、追击敌人、伤害死亡。CI工具集14.51.36231按库存显式锁定，本机仍14.50.35717。
+
+P1-02已由Sonnet实现并经Codex52单测/缓存目录Headless/战斗截图验证。关键回归：全新最小项目首次加载扩展在Windows复现访问冲突(-1073741819)，再次导入0；无扩展基线首次0。稳定SDK对照不解决，已恢复原SDK锁。优先修复冷启动，不合并main；GitHub连接器现在可用了，将创建草稿PR。下一任务由Sonnet分析首次动态扩展装载/卸载路径，禁止忽略第一次崩溃或提交.godot缓存绕过。
