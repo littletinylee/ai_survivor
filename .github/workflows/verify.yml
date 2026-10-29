@@ -58,6 +58,11 @@ jobs:
             }
             throw
           }
+      - name: Fixed-seed normal-character simulation
+        shell: pwsh
+        run: |
+          ./tools/simulate.ps1 -Seed 1 -Policy kite
+          ./tools/simulate.ps1 -Seed 2 -Policy stationary
       - uses: actions/upload-artifact@v4
         if: always()
         with:

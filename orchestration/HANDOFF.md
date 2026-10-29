@@ -27,3 +27,5 @@ Windows推送与PR CI均在0d58b1f完成success。PR#1已验收并合并main，m
 P1-03经验/三选一/连续升级已实现并本地80单测、Headless(含真实经验拾取升级)及2冷启动通过，截图已看。卡片应用使用generation+ID拒绝重复/旧回调，泡泡弹升级有效；六槽库存/容量过滤有测试，但真实攻击仍只泡泡弹，无效未实现武器不会出现。此轮Sonnet编写，Codex补TextServer/Texture2D绑定依赖并修数值边界。下一步WindowsCI/PR合并，再完整20分钟战斗+经验+卡片模拟（不能拿仅计时模拟替代）。
 
 PR#2已在dfafce1推送/PR双CI成功后合并main（699d24c94974709978bad587daf26ee351a983c7）。P1-03 DONE，新分支feat/full-run-simulation做P1-04。要求模拟与实际场景复用同一纯C++帧顺序和升级应用逻辑；正常鱼AI平衡与受控胜利夹具分开报告，不能拿无敌参数或仅计时测试冒充正常20分钟体验。
+
+P1-04本地验收：Sonnet共享帧/完整模拟，Haiku原生真实JSON适配；87测试、Headless、2冷启动和实际报告通过，详见docs/SIMULATION.md。正常鱼自动策略35.77/47.22秒Lost，不能宣称20分钟平衡通过。下一步提交PR、WindowsCI，之后P2-01实际三类武器；TASK_QUEUE已补Phase2–5，不能把最小版本当整个项目完成。外部开发者当前均已退出，runner旧PID36136不存在。实际模型费用unknown，CLI列表估价不是账单。

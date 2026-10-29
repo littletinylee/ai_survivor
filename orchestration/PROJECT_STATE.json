@@ -15,11 +15,11 @@
     "deepseek_availability_probe"
   ],
   "unverified": [
-    "experience_cards",
-    "complete_run_balance"
+    "complete_run_balance",
+    "P1-04_Windows_CI"
   ],
-  "next": "P1-04 shared pure-C++ frame orchestration and fixed-seed full combat/progression simulation; report default-character balance separately from controlled victory fixture",
-  "reason": "PR#2 merged at699d24c after both CI runs success ondfafce1",
-  "tests": "80 GoogleTest + native Headless + 2 cold-start fixtures PASS locally and in Windows push/PR CI",
+  "next": "P1-04 PR and exact-head Windows CI; then P2-01 three real weapon attack types and balance baseline",
+  "reason": "Sonnet shared simulation and Haiku native adapter reviewed; actual default fish Lost at 35.77s/47.22s, no victory balance claim",
+  "tests": "87 GoogleTest, native Headless, 2 fresh cold-start fixtures, 3 normal-data simulations and repeated seed report PASS; 6 invalid CLI cases and RequireVictory rejection PASS locally",
   "workspace": "E:/AI Survior/ai_survivor"
 }

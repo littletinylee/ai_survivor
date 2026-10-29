@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <memory>
+#include <vector>
 
 #include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/dir_access.hpp>
@@ -28,6 +30,7 @@
 
 #include "core/game_state.h"
 #include "core/game_timer.h"
+#include "core/run_simulation.h"
 
 namespace ai_survivors {
 
@@ -149,6 +152,192 @@ Button *make_button(Control *parent, const char *text, int size, float x,
 
 bool key_down(godot::Key key) {
     return godot::Input::get_singleton()->is_physical_key_pressed(key);
+}
+
+// --simulate-run options; defaults match tools/simulate.ps1.
+struct SimulationRequest {
+    bool requested = false;
+    std::uint64_t seed = 1;
+    SimulationPolicy policy = SimulationPolicy::kKiteAndCollect;
+    std::string character_id = "deepseek_big_fish";
+};
+
+// Accepts only plain decimal digits in the unsigned 32-bit range.
+bool parse_seed(const std::string &text, std::uint64_t &seed) {
+    if (text.empty() || text.size() > 10) {
+        return false;
+    }
+    std::uint64_t value = 0;
+    for (const char c : text) {
+        if (c < '0' || c > '9') {
+            return false;
+        }
+        value = value * 10 + static_cast<std::uint64_t>(c - '0');
+    }
+    if (value > 0xFFFFFFFFULL) {
+        return false;
+    }
+    seed = value;
+    return true;
+}
+
+// Unknown user args are errors only in simulation mode, so normal game and
+// test args are never rejected here.
+bool parse_simulation_args(const PackedStringArray &args,
+                           SimulationRequest &request, std::string &err) {
+    bool simulate = false;
+    bool game_flag = false;
+    std::string unknown_arg;
+    std::vector<std::string> seen;
+    for (int64_t i = 0; i < args.size(); ++i) {
+        const std::string arg = to_std(args[i]);
+        const bool is_option = arg == "--simulate-run" || arg == "--seed" ||
+                               arg == "--policy" || arg == "--character";
+        if (is_option) {
+            if (std::find(seen.begin(), seen.end(), arg) != seen.end()) {
+                err = "duplicate " + arg;
+                return false;
+            }
+            seen.push_back(arg);
+        }
+        if (arg == "--simulate-run") {
+            simulate = true;
+        } else if (arg == "--seed" || arg == "--policy" || arg == "--character") {
+            // A following "--..." token is a missing value, not a value.
+            const bool has_value = i + 1 < args.size() &&
+                                   to_std(args[i + 1]).rfind("--", 0) != 0;
+            if (!has_value) {
+                err = arg + " requires a value";
+                return false;
+            }
+            const std::string value = to_std(args[++i]);
+            if (arg == "--seed") {
+                if (!parse_seed(value, request.seed)) {
+                    err = "invalid --seed (expected 0..4294967295): " + value;
+                    return false;
+                }
+            } else if (arg == "--policy") {
+                if (value == "kite") {
+                    request.policy = SimulationPolicy::kKiteAndCollect;
+                } else if (value == "stationary") {
+                    request.policy = SimulationPolicy::kStationary;
+                } else {
+                    err = "invalid --policy (kite|stationary): " + value;
+                    return false;
+                }
+            } else {
+                if (value.empty()) {
+                    err = "invalid --character: empty id";
+                    return false;
+                }
+                request.character_id = value;
+            }
+        } else if (arg == "--integration-test" || arg.rfind("--visual-", 0) == 0) {
+            game_flag = true;
+        } else if (unknown_arg.empty()) {
+            unknown_arg = arg;
+        }
+    }
+
+    const bool value_option_seen =
+        std::find(seen.begin(), seen.end(), "--seed") != seen.end() ||
+        std::find(seen.begin(), seen.end(), "--policy") != seen.end() ||
+        std::find(seen.begin(), seen.end(), "--character") != seen.end();
+    if (!simulate) {
+        if (value_option_seen) {
+            err = "--seed, --policy and --character require --simulate-run";
+            return false;
+        }
+        return true;
+    }
+    if (!unknown_arg.empty()) {
+        err = "unknown argument with --simulate-run: " + unknown_arg;
+        return false;
+    }
+    if (game_flag) {
+        err = "--simulate-run cannot be combined with --integration-test or --visual-*";
+        return false;
+    }
+    request.requested = true;
+    return true;
+}
+
+const char *policy_name(SimulationPolicy policy) {
+    return policy == SimulationPolicy::kStationary ? "stationary" : "kite";
+}
+
+// A Lost run is a legitimate result. Only structural and invariant failures
+// make the run invalid; the outcome itself is never forced.
+bool simulation_is_valid(const SimulationResult &r) {
+    const bool terminal = r.final_state == GameState::kWon ||
+                          r.final_state == GameState::kLost;
+    // Won is only reachable at the 1200 s logic boundary.
+    const bool won_at_boundary =
+        r.final_state == GameState::kWon
+            ? r.survival_seconds == GameTimer::kWinDurationSeconds && r.final_hp > 0.0
+            : r.survival_seconds < GameTimer::kWinDurationSeconds && r.final_hp == 0.0;
+    return r.error.empty() && r.terminated && terminal && won_at_boundary &&
+           !r.hit_iteration_limit && !r.stalled && r.invalid_selections == 0 &&
+           r.frozen_violations == 0 &&
+           r.terminal_violations == 0 && r.peak_enemies <= 256 &&
+           r.peak_projectiles <= 512 && r.peak_orbs <= 512 &&
+           r.peak_weapons <= 6;
+}
+
+// Runs the pure core on the loaded character and prints one report line.
+// Returns the process exit code: 0 only for a valid terminal run.
+int run_simulation_report(const CharacterRegistry &registry,
+                          const SimulationRequest &request) {
+    const CharacterDefinition *character = registry.find(request.character_id);
+    if (character == nullptr) {
+        godot::UtilityFunctions::push_error(
+            to_godot("simulation character not loaded: " + request.character_id));
+        return 1;
+    }
+    const SimulationResult r =
+        run_simulation(*character, request.seed, request.policy);
+
+    // Hex string: a uint64 would lose precision as a JSON number.
+    char hash[24];
+    std::snprintf(hash, sizeof(hash), "%016llx",
+                  static_cast<unsigned long long>(r.trace_hash));
+
+    Dictionary report;
+    report["requested_seed"] = static_cast<int64_t>(request.seed);
+    report["character_id"] = to_godot(character->id);
+    report["policy"] = to_godot(policy_name(request.policy));
+    report["normal_character"] = true;
+    report["final_state"] = to_godot(to_string(r.final_state));
+    report["survival_seconds"] = r.survival_seconds;
+    report["hp"] = r.final_hp;
+    report["maxhp"] = r.max_hp;
+    report["kills"] = static_cast<int64_t>(r.kills);
+    report["level"] = r.final_level;
+    report["xp"] = r.xp_gained;
+    report["cards"] = r.cards_picked;
+    report["invalid_selections"] = r.invalid_selections;
+    report["peak_pending_levels"] = r.peak_pending_levels;
+    report["peak_enemies"] = static_cast<int64_t>(r.peak_enemies);
+    report["peak_projectiles"] = static_cast<int64_t>(r.peak_projectiles);
+    report["peak_orbs"] = static_cast<int64_t>(r.peak_orbs);
+    report["peak_weapons"] = static_cast<int64_t>(r.peak_weapons);
+    report["frames"] = static_cast<int64_t>(r.frames);
+    report["trace_hash"] = String::utf8(hash);
+    report["error"] = to_godot(r.error);
+    report["iteration_limit"] = r.hit_iteration_limit;
+    report["stalled"] = r.stalled;
+    report["frozen_violations"] = r.frozen_violations;
+    report["terminal_violations"] = r.terminal_violations;
+
+    godot::UtilityFunctions::print(
+        String("AI_SURVIVORS_SIMULATION_REPORT ") + godot::JSON::stringify(report));
+
+    if (!simulation_is_valid(r)) {
+        godot::UtilityFunctions::push_error(
+            to_godot("simulation report is not a valid terminal run"));
+        return 1;
+    }
+    return 0;
 }
 
 } // namespace
@@ -358,24 +547,24 @@ void AISurvivorsBootstrap::refresh_battle_ui() {
     }
 }
 
-void AISurvivorsBootstrap::advance_frame(double delta) {
+void AISurvivorsBootstrap::advance_frame(double delta, double input_x,
+                                         double input_y) {
     if (states_.state() != GameState::kPlaying || !world_ || !timer_ ||
         !progression_) {
         return;
     }
-    // Death has priority over victory: combat runs before the single
-    // survival clock, which only advances if the run is still Playing.
-    world_->tick(states_, delta, player_.position());
-    if (states_.state() == GameState::kPlaying) {
-        timer_->advance(delta);
+    const RunStepResult step = advance_run(states_, *timer_, player_, *world_,
+                                           *progression_, delta, input_x,
+                                           input_y);
+    if (step.status == RunStepStatus::kRejected) {
+        return;
     }
-    if (states_.state() == GameState::kPlaying) {
-        progression_->ingest_and_collect(states_.state(),
-                                         world_->take_kill_events(),
-                                         player_.position());
-        if (progression_->needs_upgrade()) {
-            begin_upgrade_flow();
-        }
+    if (input_x != 0.0) {
+        facing_ = input_x > 0.0 ? 1.0 : -1.0;
+    }
+    // Buttons are only touched when an upgrade actually opened this frame.
+    if (step.upgrade != UpgradePrep::kNoUpgrade) {
+        present_upgrade(step.upgrade);
     }
 }
 
@@ -389,19 +578,10 @@ void AISurvivorsBootstrap::simulate_battle(double seconds) {
     refresh_battle_ui();
 }
 
-void AISurvivorsBootstrap::begin_upgrade_flow() {
-    if (!progression_ || !states_.begin_upgrade()) {
-        return;
-    }
-    continue_upgrade_flow();
-}
-
-void AISurvivorsBootstrap::continue_upgrade_flow() {
+void AISurvivorsBootstrap::present_upgrade(UpgradePrep prep) {
     clear_card_buttons();
-    if (progression_->advance_offer()) {
+    if (prep == UpgradePrep::kOfferActive) {
         show_offer();
-    } else if (states_.state() == GameState::kUpgrade) {
-        states_.complete_upgrade();
     }
     show_screen(Screen::kBattle);
 }
@@ -436,27 +616,19 @@ void AISurvivorsBootstrap::show_offer() {
     }
 }
 
-void AISurvivorsBootstrap::apply_runtime_stats() {
+void AISurvivorsBootstrap::on_card_pressed(const String &card_id,
+                                           int64_t generation) {
     if (!progression_ || !world_) {
         return;
     }
-    const PlayerRuntimeStats &s = progression_->stats();
-    world_->update_player_stats(s.combat(), progression_->weapon_damage_scale());
-    player_.set_move_speed(s.move_speed);
-}
-
-void AISurvivorsBootstrap::on_card_pressed(const String &card_id,
-                                           int64_t generation) {
-    if (!progression_ || states_.state() != GameState::kUpgrade) {
-        return;
-    }
     // Stale / repeated / invalid callbacks are rejected without mutation.
-    if (progression_->choose(static_cast<std::uint64_t>(generation),
-                             to_std(card_id)) != ChooseResult::kApplied) {
+    const ChooseRunResult chosen = choose_run_upgrade(
+        states_, *world_, player_, *progression_,
+        static_cast<std::uint64_t>(generation), to_std(card_id));
+    if (chosen.result != ChooseResult::kApplied) {
         return;
     }
-    apply_runtime_stats();
-    continue_upgrade_flow();
+    present_upgrade(chosen.next);
     refresh_battle_ui();
 }
 
@@ -520,10 +692,7 @@ void AISurvivorsBootstrap::_physics_process(double delta) {
     if (key_down(godot::KEY_S) || key_down(godot::KEY_DOWN)) iy += 1.0;
 
     if (states_.state() == GameState::kPlaying) {
-        if (player_.step(states_.state(), delta, ix, iy) && ix != 0.0) {
-            facing_ = ix > 0.0 ? 1.0 : -1.0;
-        }
-        advance_frame(delta);
+        advance_frame(delta, ix, iy);
         if (states_.state() != GameState::kPlaying) {
             show_screen(Screen::kBattle); // defeat / victory overlay
         }
@@ -928,6 +1097,27 @@ void AISurvivorsBootstrap::_ready() {
         }
     }
 
+    // Headless simulation: no battle scene, no frame loop. It runs on the
+    // character data loaded above and quits with the report's exit code.
+    SimulationRequest simulation;
+    std::string simulation_error;
+    if (!parse_simulation_args(args, simulation, simulation_error)) {
+        godot::UtilityFunctions::push_error(
+            to_godot("argument error: " + simulation_error));
+        get_tree()->quit(1);
+        return;
+    }
+    if (simulation.requested) {
+        if (!load_error_.empty()) {
+            godot::UtilityFunctions::push_error(
+                to_godot("simulation aborted: character data did not load"));
+            get_tree()->quit(1);
+            return;
+        }
+        get_tree()->quit(run_simulation_report(registry_, simulation));
+        return;
+    }
+
     if (!integration_test) {
         // Normal scene stays open until the window is closed.
         if (visual_battle && load_error_.empty()) {
@@ -940,7 +1130,7 @@ void AISurvivorsBootstrap::_ready() {
                 // Screenshot only: a legitimate XP grant through the normal
                 // level/offer pipeline; normal mode has no such shortcut.
                 progression_->grant_xp(GameState::kPlaying, 25.0);
-                if (progression_->needs_upgrade()) begin_upgrade_flow();
+                present_upgrade(prepare_next_upgrade(states_, *progression_));
                 refresh_battle_ui();
             }
         } else if (visual_select && load_error_.empty()) {
