@@ -83,7 +83,7 @@
         "New characters work without combat refactor",
         "External OC author, source and permission recorded"
       ],
-      "checkpoint": "吃白饭 core+native UI implemented and locally verified137 tests/native2cold/screenshots.100 actual collected XP ->3% current maxHP; remainder/fullHP consumption/death priority/reset covered. Exact-head WindowsCI pending; additional characters still TODO. Normal1200s balance remains P2 open."
+      "checkpoint": "吃白饭 core/native UI accepted:137 tests, Headless2cold, screenshots and exact281c37a dual WindowsCI PASS; PR8 mergedc8d72ec. Default passive complete; additional characters still TODO. P2 normal1200s balance remains open."
     },
     {
       "id": "P4-01",

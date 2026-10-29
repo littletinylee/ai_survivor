@@ -3,7 +3,7 @@
   "phase": 3,
   "status": "IN_PROGRESS",
   "date": "2026-10-29",
-  "branch": "codex/free-rice-passive",
+  "branch": "codex/balance-diagnostics",
   "remote": "git@github.com:littletinylee/ai_survivor.git",
   "completed": [
     "environment_probe",
@@ -18,10 +18,10 @@
     "normal_character_1200_second_balance",
     "walk_animation",
     "additional_characters",
-    "free_rice_Windows_CI"
+    "health_metrics_and_timeline"
   ],
-  "next": "Submit 吃白饭 passive PR and exact-head WindowsCI; then instrument damage/healing/XP/card timeline before more balance changes",
-  "reason": "User-named passive implemented by Sonnet, UI by Haiku, Codex reviewed numeric bounds and runtime ordering.100 actual collected XP ->3% current maxHP; no bank/no revive. P2 balance remains open; new passive is a Phase3 feature, not a claimed balance fix.",
+  "next": "Health metrics stageA: orchestration/P2-02-health-metrics-task.md, unique health-metrics-v1, Haiku0.25 auto; after unchanged-hash validation stageB timeline task with Sonnet0.6; read actual data before any balance tuning",
+  "reason": "吃白饭 PR8 exact281c37a passed push40851398898 andPR40851484593 WindowsCI, reviewed and mergedc8d72ecca6f5b6292aae847049dcb50a729dd937. New6cycle Subrouter host protocol batch for observability, then evidence-based gameplay work; complete Phase0-5 goal remains active.",
   "tests": "Host build137/137 GoogleTest; native Headless and2fresh cold starts PASS; selection and battle screenshots reviewed. Actual JSON seed1/2 kite Lost613.466678936/560.300011206; stationary25.133333836 unchanged. Same reports repeated after final edits. No normal1200s win.",
   "workspace": "E:/AI Survior/ai_survivor"
 }
