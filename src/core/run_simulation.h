@@ -43,6 +43,7 @@ struct SimulationResult {
     std::size_t peak_projectiles = 0;
     std::size_t peak_orbs = 0;
     std::size_t peak_weapons = 0;
+    std::size_t peak_zones = 0;        // active data_pool-style zones; cap 32
 
     int frozen_violations = 0;   // clocks moved during Upgrade
     int terminal_violations = 0; // clocks/state moved after a terminal state

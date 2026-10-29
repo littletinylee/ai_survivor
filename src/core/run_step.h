@@ -55,6 +55,11 @@ UpgradePrep prepare_next_upgrade(GameStateManager &states,
 void sync_runtime_stats(CombatWorld &world, PlayerController &player,
                         const ProgressionSession &progression);
 
+// Installs the actual selected initial weapon(s) into a fresh world. Empty
+// string on success; otherwise the run must not start.
+std::string initialize_run_loadout(CombatWorld &world,
+                                   const ProgressionSession &progression);
+
 struct ChooseRunResult {
     ChooseResult result = ChooseResult::kNoOffer;
     UpgradePrep next = UpgradePrep::kNoUpgrade; // only meaningful if applied

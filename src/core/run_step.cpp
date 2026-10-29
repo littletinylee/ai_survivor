@@ -60,7 +60,24 @@ void sync_runtime_stats(CombatWorld &world, PlayerController &player,
                         const ProgressionSession &progression) {
     const PlayerRuntimeStats &s = progression.stats();
     world.update_player_stats(s.combat(), progression.weapon_damage_scale());
+    // Whole equipped loadout, not just bubble_shot. A loadout that fails to
+    // compile or validate leaves the previous one untouched (atomic).
+    std::vector<WeaponSpec> specs;
+    if (progression.compile_loadout(specs).empty()) {
+        world.set_loadout(specs);
+    }
     player.set_move_speed(s.move_speed);
+}
+
+std::string initialize_run_loadout(CombatWorld &world,
+                                   const ProgressionSession &progression) {
+    std::vector<WeaponSpec> specs;
+    std::string err = progression.compile_loadout(specs);
+    if (!err.empty()) {
+        return err;
+    }
+    return world.set_loadout(specs) ? std::string()
+                                    : std::string("loadout rejected by combat");
 }
 
 ChooseRunResult choose_run_upgrade(GameStateManager &states,

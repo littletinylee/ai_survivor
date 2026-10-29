@@ -281,7 +281,7 @@ bool simulation_is_valid(const SimulationResult &r) {
            r.frozen_violations == 0 &&
            r.terminal_violations == 0 && r.peak_enemies <= 256 &&
            r.peak_projectiles <= 512 && r.peak_orbs <= 512 &&
-           r.peak_weapons <= 6;
+           r.peak_weapons <= 6 && r.peak_zones <= 32;
 }
 
 // Runs the pure core on the loaded character and prints one report line.
@@ -321,6 +321,7 @@ int run_simulation_report(const CharacterRegistry &registry,
     report["peak_projectiles"] = static_cast<int64_t>(r.peak_projectiles);
     report["peak_orbs"] = static_cast<int64_t>(r.peak_orbs);
     report["peak_weapons"] = static_cast<int64_t>(r.peak_weapons);
+    report["peak_zones"] = static_cast<int64_t>(r.peak_zones);
     report["frames"] = static_cast<int64_t>(r.frames);
     report["trace_hash"] = String::utf8(hash);
     report["error"] = to_godot(r.error);
@@ -434,6 +435,7 @@ void AISurvivorsBootstrap::build_ui() {
                24, false);
 
     xp_label_ = make_label(battle_panel_, "", 16, 330, 48, 400, 24, false);
+    weapons_label_ = make_label(battle_panel_, "", 16, 20, 618, 1060, 28, false);
 
     upgrade_panel_ = make_panel(battle_panel_, "UpgradePanel");
     upgrade_title_ = make_label(upgrade_panel_, "升级！选择一项强化", 40, 0, 110,
@@ -507,6 +509,15 @@ void AISurvivorsBootstrap::start_battle(const std::string &character_id) {
         godot::UtilityFunctions::push_error(to_godot(session->init_error()));
         return;
     }
+    // Combat starts with the weapon(s) actually selected, not a fixed bubble.
+    auto world = std::make_unique<CombatWorld>(
+        CombatStats::from_character(*character), 0xA15D0000ULL + run_counter_);
+    const std::string loadout_error = initialize_run_loadout(*world, *session);
+    if (!loadout_error.empty()) {
+        godot::UtilityFunctions::push_error(to_godot(loadout_error));
+        return;
+    }
+    ++run_counter_;
     clear_card_buttons();
     progression_ = std::move(session);
     active_character_ = character;
@@ -518,8 +529,7 @@ void AISurvivorsBootstrap::start_battle(const std::string &character_id) {
     player_.set_move_speed(progression_->stats().move_speed);
     // Fixed base seed plus a per-session run counter: reproducible, yet
     // restarts are not identical copies.
-    world_ = std::make_unique<CombatWorld>(CombatStats::from_character(*character),
-                                           0xA15D0000ULL + run_counter_++);
+    world_ = std::move(world);
     facing_ = 1.0;
     escape_was_down_ = key_down(godot::KEY_ESCAPE);
     show_screen(Screen::kBattle);
@@ -544,6 +554,13 @@ void AISurvivorsBootstrap::refresh_battle_ui() {
                       progression_->levels().level(), progression_->levels().xp(),
                       progression_->levels().next_threshold());
         xp_label_->set_text(String::utf8(xp));
+        std::string text;
+        for (const WeaponInventory::Entry &w : progression_->inventory().entries()) {
+            const WeaponDefinition *def = weapon_registry_.find(w.id);
+            text += "   " + (def != nullptr ? def->name : w.id) + " Lv" +
+                    std::to_string(w.level);
+        }
+        weapons_label_->set_text(String::utf8(text.c_str()));
     }
 }
 
@@ -753,6 +770,31 @@ void AISurvivorsBootstrap::_draw() {
             draw_arc(ep, static_cast<float>(e.radius), 0.0f, 6.2831853f, 24,
                      coral_edge, 3.0f);
         }
+        // Data-pool zones: translucent disc with a ring and tick-ripple.
+        for (const Zone &z : world_->zones()) {
+            const Vector2 zp =
+                center + Vector2(static_cast<float>(z.position.x),
+                                 static_cast<float>(z.position.y));
+            const float fade = static_cast<float>(
+                std::max(0.0, 1.0 - z.age / std::max(0.001, z.lifetime)));
+            draw_circle(zp, static_cast<float>(z.radius),
+                        Color(0.2f, 0.9f, 0.7f, 0.12f + 0.12f * fade));
+            draw_arc(zp, static_cast<float>(z.radius), 0.0f, 6.2831853f, 48,
+                     Color(0.4f, 1.0f, 0.85f, 0.8f), 3.0f);
+            const double phase = std::fmod(z.age, z.tick_interval) / z.tick_interval;
+            draw_arc(zp, static_cast<float>(z.radius * phase), 0.0f, 6.2831853f,
+                     32, Color(0.7f, 1.0f, 0.95f, 0.5f * (1.0f - static_cast<float>(phase))),
+                     2.0f);
+        }
+        // Tail sweep: expanding ring that fades over BurstVisual::kDuration.
+        for (const BurstVisual &v : world_->bursts()) {
+            const Vector2 vp =
+                center + Vector2(static_cast<float>(v.center.x),
+                                 static_cast<float>(v.center.y));
+            const float t = static_cast<float>(v.age / BurstVisual::kDuration);
+            draw_arc(vp, static_cast<float>(v.radius * (0.5 + 0.5 * t)), 0.0f,
+                     6.2831853f, 48, Color(1.0f, 0.85f, 0.35f, 1.0f - t), 6.0f);
+        }
         for (const Projectile &b : world_->projectiles()) {
             const Vector2 bp =
                 center + Vector2(static_cast<float>(b.position.x),
@@ -931,7 +973,8 @@ bool AISurvivorsBootstrap::run_progression_checks() {
         after.move_speed != before.move_speed ||
         after.crit_chance != before.crit_chance ||
         after.pickup_radius != before.pickup_radius ||
-        progression_->inventory().level("bubble_shot") > 1;
+        progression_->inventory().level("bubble_shot") > 1 ||
+        progression_->inventory().entries().size() > 1;
     if (!changed || progression_->levels().pending_levels() != pending - 1) {
         return fail("valid card did not change stats or consume a level");
     }
@@ -964,6 +1007,103 @@ bool AISurvivorsBootstrap::run_progression_checks() {
     if (!clean) {
         return fail("restart did not clear progression");
     }
+    return true;
+}
+
+bool AISurvivorsBootstrap::run_weapon_checks(bool keep_scene) {
+    const auto fail = [this](const char *detail) {
+        godot::UtilityFunctions::print(
+            String("AI_SURVIVORS_INTEGRATION_FAILED: ") + String(detail));
+        on_back_to_menu_pressed();
+        return false;
+    };
+    start_battle("deepseek_big_fish");
+    if (!world_ || !progression_) return fail("weapon fixture did not start");
+    // Internal integration fixture: real generated offers and native button
+    // callbacks. Each grant earns exactly one choice; no inventory injection.
+    const auto choose_wanted = [this](const std::string &wanted) {
+        const std::string acquire_prefix = "weapon_acquire_";
+        if (wanted.rfind(acquire_prefix, 0) == 0 &&
+            progression_->inventory().has(wanted.substr(acquire_prefix.size()))) {
+            return true; // may have been chosen while seeking another offer
+        }
+        for (int attempt = 0; attempt < 128; ++attempt) {
+            if (states_.state() != GameState::kPlaying) return false;
+            const double needed = progression_->levels().next_threshold() -
+                                  progression_->levels().xp();
+            progression_->grant_xp(GameState::kPlaying, needed /
+                                      progression_->stats().xp_multiplier);
+            present_upgrade(prepare_next_upgrade(states_, *progression_));
+            if (!progression_->cards().has_active_offer()) return false;
+            const UpgradeOffer offer = progression_->cards().current_offer();
+            const auto found = std::find(offer.card_ids.begin(),
+                                         offer.card_ids.end(), wanted);
+            const std::string pick = found != offer.card_ids.end()
+                                         ? *found : offer.card_ids.front();
+            on_card_pressed(to_godot(pick), static_cast<int64_t>(offer.generation));
+            if (found != offer.card_ids.end()) return true;
+        }
+        return false;
+    };
+    if (!choose_wanted("weapon_acquire_tail_sweep") ||
+        !progression_->inventory().has("tail_sweep")) {
+        return fail("native card callback did not acquire tail sweep");
+    }
+    CombatConfig config;
+    config.waves_enabled = false;
+    world_ = std::make_unique<CombatWorld>(progression_->stats().combat(), 13, config);
+    if (!initialize_run_loadout(*world_, *progression_).empty()) {
+        return fail("acquired loadout did not initialize");
+    }
+    EnemySpawn target;
+    target.position = Vec2{100.0, 0.0};
+    target.hp = 1000.0;
+    target.speed = 0.0;
+    target.contact_damage = 0.0;
+    target.xp_value = 0.0;
+    world_->spawn_enemy(target);
+    target.position = Vec2{-100.0, 0.0};
+    target.hp = 1.0;
+    world_->spawn_enemy(target);
+    advance_frame(1.0 / 60.0);
+    if (world_->kill_count() != 1 || world_->bursts().empty() ||
+        world_->enemies().size() != 1 || world_->enemies()[0].hp >= 1000.0) {
+        return fail("acquired sweep did not damage and kill actual enemies");
+    }
+    double before_damage = 0.0;
+    double before_fraction = 0.0;
+    for (const WeaponManager::Slot &slot : world_->weapon_slots()) {
+        if (slot.spec.id == "tail_sweep") {
+            before_damage = slot.spec.damage;
+            before_fraction = slot.cooldown / slot.interval;
+        }
+    }
+    const double enemy_hp = world_->enemies()[0].hp;
+    if (!choose_wanted("weapon_upgrade_tail_sweep")) {
+        return fail("native callback did not offer sweep upgrade");
+    }
+    bool upgraded = false;
+    for (const WeaponManager::Slot &slot : world_->weapon_slots()) {
+        if (slot.spec.id == "tail_sweep") {
+            upgraded = slot.spec.damage > before_damage &&
+                       std::abs(slot.cooldown / slot.interval - before_fraction) < 1e-8;
+        }
+    }
+    if (!upgraded || world_->kill_count() != 1 ||
+        world_->enemies()[0].hp != enemy_hp) {
+        return fail("native upgrade reset combat or did not update damage");
+    }
+    if (!choose_wanted("weapon_acquire_data_pool")) {
+        return fail("native callback did not acquire data pool");
+    }
+    advance_frame(1.0 / 60.0);
+    if (world_->zones().empty()) return fail("acquired pool did not create a real zone");
+    refresh_battle_ui();
+    if (keep_scene) {
+        set_physics_process(false); // screenshot fixture only
+        return true;
+    }
+    on_back_to_menu_pressed();
     return true;
 }
 
@@ -1079,6 +1219,7 @@ void AISurvivorsBootstrap::_ready() {
     bool visual_select = false;
     bool visual_pause = false;
     bool visual_upgrade = false;
+    bool visual_weapons = false;
     const PackedStringArray args =
         OS::get_singleton()->get_cmdline_user_args();
     for (int64_t i = 0; i < args.size(); ++i) {
@@ -1091,6 +1232,8 @@ void AISurvivorsBootstrap::_ready() {
         } else if (args[i] == "--visual-upgrade") {
             visual_battle = true;
             visual_upgrade = true;
+        } else if (args[i] == "--visual-weapons") {
+            visual_weapons = true;
         } else if (args[i] == "--visual-pause") {
             visual_battle = true;
             visual_pause = true;
@@ -1120,7 +1263,9 @@ void AISurvivorsBootstrap::_ready() {
 
     if (!integration_test) {
         // Normal scene stays open until the window is closed.
-        if (visual_battle && load_error_.empty()) {
+        if (visual_weapons && load_error_.empty()) {
+            if (!run_weapon_checks(true)) get_tree()->quit(1);
+        } else if (visual_battle && load_error_.empty()) {
             start_battle(registry_.characters().front().id);
             // Deterministic warm-up so the screenshot shows a populated arena.
             if (world_) simulate_battle(1.0);
@@ -1153,6 +1298,10 @@ void AISurvivorsBootstrap::_ready() {
         return;
     }
     if (!run_progression_checks()) {
+        get_tree()->quit(1);
+        return;
+    }
+    if (!run_weapon_checks()) {
         get_tree()->quit(1);
         return;
     }

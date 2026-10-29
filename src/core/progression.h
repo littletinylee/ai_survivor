@@ -9,6 +9,7 @@
 #include "core/combat.h"
 #include "core/game_state.h"
 #include "core/player_controller.h"
+#include "core/weapon.h"
 
 namespace ai_survivors {
 
@@ -104,61 +105,8 @@ private:
     int pending_ = 0;
 };
 
-// ----------------------------------------------------------------- weapons
-
-struct WeaponDefinition {
-    std::string id;
-    std::string name;
-    std::string description;
-    int max_level = 8;
-    // True only if the scene has real gameplay for this weapon. Unimplemented
-    // definitions may exist in the registry but are never offered.
-    bool implemented = false;
-    // Damage multiplier gain per level above 1 (bubble: +20% of base).
-    double damage_per_level = 0.0;
-};
-
-class WeaponRegistry {
-public:
-    static constexpr int kMaxWeaponLevel = 100;
-
-    // Empty string on success; on failure nothing is added.
-    std::string add(const WeaponDefinition &weapon);
-    const WeaponDefinition *find(const std::string &id) const;
-    const std::vector<WeaponDefinition> &weapons() const { return weapons_; }
-
-    // Registry containing the single implemented weapon, bubble_shot (max 8).
-    static WeaponRegistry make_default();
-
-private:
-    std::vector<WeaponDefinition> weapons_;
-};
-
-class WeaponInventory {
-public:
-    static constexpr std::size_t kMaxWeapons = 6;
-
-    struct Entry {
-        std::string id;
-        int level = 1;
-        int max_level = 1;
-    };
-
-    // Rejects invalid id, level outside [1, max_level], max_level outside
-    // [1, WeaponRegistry::kMaxWeaponLevel], duplicates, and a 7th weapon.
-    bool add(const std::string &id, int level, int max_level);
-    bool has(const std::string &id) const;
-    int level(const std::string &id) const; // 0 when absent
-    bool full() const { return entries_.size() >= kMaxWeapons; }
-    bool can_upgrade(const std::string &id) const;
-    // Rejects absent or already maxed weapons.
-    bool upgrade(const std::string &id);
-    const std::vector<Entry> &entries() const { return entries_; }
-    void clear() { entries_.clear(); }
-
-private:
-    std::vector<Entry> entries_;
-};
+// Weapon definitions, registry and inventory live in core/weapon.h (included
+// above) so combat and progression do not depend on each other.
 
 // ------------------------------------------------------------------- cards
 
@@ -280,6 +228,9 @@ public:
     bool advance_offer();
     ChooseResult choose(std::uint64_t generation, const std::string &card_id);
 
+    // Compiles the whole inventory for combat; atomic (see compile_loadout).
+    std::string compile_loadout(std::vector<WeaponSpec> &out) const;
+    // Level scale of bubble_shot only; kept for the legacy single-weapon path.
     double weapon_damage_scale() const;
 
     ExperienceSystem &experience() { return orbs_; }

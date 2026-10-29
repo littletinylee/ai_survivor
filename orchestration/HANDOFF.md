@@ -29,3 +29,7 @@ P1-03经验/三选一/连续升级已实现并本地80单测、Headless(含真�
 PR#2已在dfafce1推送/PR双CI成功后合并main（699d24c94974709978bad587daf26ee351a983c7）。P1-03 DONE，新分支feat/full-run-simulation做P1-04。要求模拟与实际场景复用同一纯C++帧顺序和升级应用逻辑；正常鱼AI平衡与受控胜利夹具分开报告，不能拿无敌参数或仅计时测试冒充正常20分钟体验。
 
 P1-04本地验收：Sonnet共享帧/完整模拟，Haiku原生真实JSON适配；87测试、Headless、2冷启动和实际报告通过，详见docs/SIMULATION.md。正常鱼自动策略35.77/47.22秒Lost，不能宣称20分钟平衡通过。下一步提交PR、WindowsCI，之后P2-01实际三类武器；TASK_QUEUE已补Phase2–5，不能把最小版本当整个项目完成。外部开发者当前均已退出，runner旧PID36136不存在。实际模型费用unknown，CLI列表估价不是账单。
+
+PR#3已在8c9cad5推送/PR双WindowsCI成功后合并main，merge=ae4d7973041c4a75b3c80c4e24a43d19ca2f3c38。P1-04功能流程DONE，不代表默认鱼平衡完成。新分支codex/weapon-types开始P2-01，Claude Sonnet负责实现，运行时Codex只读。
+
+P2-01三类真实武器本地完成：100测试+Headless实际卡片/区域/升级+2冷启动通过，装备栏/黄环/绿池截图已检查。Sonnet session12972/exec82399已终止（error_max_budget_usd，列表估价1.0084553USD，不是已知实际扣费）；没有重试付费调用。Codex接管修复并验证。下一步PR/WindowsCI，成功才合并。正常鱼seed1自动策略150.53秒Lost，后续P2-02改善敌人/策略/平衡，绝不宣称已通20分钟。当前无外部写入者，允许Codex修改；runner仍旧agent_stop。

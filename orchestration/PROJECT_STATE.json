@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "phase": 1,
+  "phase": 2,
   "status": "IN_PROGRESS",
   "date": "2026-10-29",
-  "branch": "feat/full-run-simulation",
+  "branch": "codex/weapon-types",
   "remote": "git@github.com:littletinylee/ai_survivor.git",
   "completed": [
     "environment_probe",
@@ -16,10 +16,10 @@
   ],
   "unverified": [
     "complete_run_balance",
-    "P1-04_Windows_CI"
+    "P2-01_Windows_CI"
   ],
-  "next": "P1-04 PR and exact-head Windows CI; then P2-01 three real weapon attack types and balance baseline",
-  "reason": "Sonnet shared simulation and Haiku native adapter reviewed; actual default fish Lost at 35.77s/47.22s, no victory balance claim",
-  "tests": "87 GoogleTest, native Headless, 2 fresh cold-start fixtures, 3 normal-data simulations and repeated seed report PASS; 6 invalid CLI cases and RequireVictory rejection PASS locally",
+  "next": "P2-01 PR and exact-head Windows CI; then P2-02 enemy variety and normal-character balance",
+  "reason": "Sonnet task reached per-call list-estimate budget, stopped; Codex completed local review/fixes/testing without retrying the paid call",
+  "tests": "100 GoogleTest + native actual acquisition/area damage/upgrade checks + 2 fresh cold starts PASS; normal JSON seed1 kite Lost150.53s/148kills, visual screenshot inspected",
   "workspace": "E:/AI Survior/ai_survivor"
 }

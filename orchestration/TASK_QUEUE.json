@@ -43,7 +43,7 @@
     {
       "id": "P1-04",
       "title": "Complete run loop",
-      "status": "IN_REVIEW",
+      "status": "DONE",
       "acceptance": [
         "Menu and character select lead to gameplay",
         "Zero HP loses",
@@ -54,7 +54,7 @@
     {
       "id": "P2-01",
       "title": "Three real weapon attack types and equipment integration",
-      "status": "TODO",
+      "status": "IN_REVIEW",
       "acceptance": [
         "Projectile, nearby area and periodic area attacks actually deal damage",
         "Acquisition and upgrades affect combat; six unique slots maximum",

@@ -114,6 +114,10 @@ SimulationResult run_simulation(const CharacterDefinition &character,
                             progression.stats().move_speed);
     CombatWorld world(CombatStats::from_character(character),
                       seed ^ 0xA15D0000ULL, config);
+    r.error = initialize_run_loadout(world, progression);
+    if (!r.error.empty()) {
+        return r;
+    }
     states.start_run();
 
     // Total passes (frames and upgrade choices) are bounded by kMaxIterations.
@@ -165,6 +169,7 @@ SimulationResult run_simulation(const CharacterDefinition &character,
             std::max(r.peak_projectiles, world.projectiles().size());
         r.peak_orbs =
             std::max(r.peak_orbs, progression.experience().orbs().size());
+        r.peak_zones = std::max(r.peak_zones, world.zones().size());
         r.peak_weapons =
             std::max(r.peak_weapons, progression.inventory().entries().size());
         r.peak_pending_levels =
@@ -176,6 +181,7 @@ SimulationResult run_simulation(const CharacterDefinition &character,
         mix(r.trace_hash, world.kill_count());
         mix(r.trace_hash, world.enemies().size());
         mix(r.trace_hash, world.projectiles().size());
+        mix(r.trace_hash, world.zones().size());
         mix(r.trace_hash, progression.experience().orbs().size());
         mix(r.trace_hash, static_cast<std::uint64_t>(progression.levels().level()));
         mix_fixed(r.trace_hash, progression.levels().xp());

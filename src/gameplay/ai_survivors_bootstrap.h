@@ -75,6 +75,7 @@ private:
     bool run_core_checks();
     bool run_native_checks();
     bool run_progression_checks();
+    bool run_weapon_checks(bool keep_scene = false);
 
     // Run-local state; recreated for every battle.
     WeaponRegistry weapon_registry_ = WeaponRegistry::make_default();
@@ -110,6 +111,7 @@ private:
     godot::Control *upgrade_panel_ = nullptr;
     godot::Label *upgrade_title_ = nullptr;
     godot::Label *xp_label_ = nullptr;
+    godot::Label *weapons_label_ = nullptr;
     godot::Label *overlay_title_ = nullptr;
     godot::Control *resume_button_ = nullptr;
 };

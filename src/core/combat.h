@@ -7,6 +7,7 @@
 #include "core/character.h"
 #include "core/game_state.h"
 #include "core/player_controller.h"
+#include "core/weapon.h"
 
 namespace ai_survivors {
 
@@ -73,6 +74,51 @@ struct Projectile {
     double radius = 8.0;
     double remaining_life = 0.0;
     bool critical = false;
+    int pierce_left = 0;      // further enemies it may pass through
+    double knockback = 0.0;
+    // Enemies already hit; bounded by pierce_count + 1 because the projectile
+    // retires on its last allowed hit. Prevents repeat hits while overlapping.
+    std::vector<std::uint32_t> hit_ids;
+};
+
+// Stationary damaging area. Ticks at tick_interval, 2*tick_interval, ... while
+// age <= lifetime, then is removed. Damage per tick is fixed at spawn.
+struct Zone {
+    Vec2 position;
+    double radius = 0.0;
+    double damage = 0.0;
+    double knockback = 0.0;
+    double tick_interval = 0.5;
+    double lifetime = 0.0;
+    double age = 0.0;
+    double next_tick = 0.5; // age at which the next tick fires
+    bool critical = false;
+};
+
+// Instant area hit around the player, resolved by CombatWorld in the same
+// substep it was produced.
+struct BurstAttack {
+    Vec2 center;
+    double radius = 0.0;
+    double damage = 0.0;
+    double knockback = 0.0;
+    bool critical = false;
+};
+
+// Read-only transient ring for rendering.
+struct BurstVisual {
+    static constexpr double kDuration = 0.25;
+    Vec2 center;
+    double radius = 0.0;
+    double age = 0.0;
+};
+
+// Where area weapons put their output. Null zones means area weapons cannot
+// fire (and therefore spend no cooldown).
+struct AreaSink {
+    static constexpr std::size_t kMaxZones = 32;
+    std::vector<BurstAttack> bursts;
+    std::vector<Zone> *zones = nullptr;
 };
 
 // Emitted once per killed enemy. XP is only a payload; experience itself is
@@ -142,26 +188,52 @@ private:
     std::vector<Projectile> projectiles_;
 };
 
+// Runs every equipped weapon with its own independent cooldown. Behaviour is
+// chosen by AttackKind, never by weapon id.
 class WeaponManager {
 public:
+    struct Slot {
+        WeaponSpec spec;
+        double interval = 0.8; // spec.cooldown at the current attack speed
+        double cooldown = 0.0;
+    };
+
+    // Legacy bare configuration: a single projectile weapon taken from the
+    // CombatConfig scalars (id "bubble_shot"), starting ready.
     void configure(const CombatStats &stats, const CombatConfig &config);
     void reset();
-    // Applies new stats/config in place. The remaining cooldown keeps its
-    // fraction of the interval, so an upgrade neither refires instantly nor
-    // stalls the weapon.
     void reconfigure(const CombatStats &stats, const CombatConfig &config);
-    // Cools down, then fires at the nearest enemy in range if ready and the
-    // projectile pool has room. Returns true if a shot was fired.
+    // Replaces the loadout from validated specs (atomic: an invalid or
+    // oversized/duplicated list changes nothing and returns false). Slots whose
+    // id already exists update in place and keep their cooldown fraction; new
+    // ids start ready; ids that vanished are dropped.
+    bool set_loadout(const CombatStats &stats,
+                     const std::vector<WeaponSpec> &specs);
+    // New player stats, same loadout; cooldown fractions are preserved.
+    void update_stats(const CombatStats &stats);
+    // Cools down every slot and fires each ready one that has a target and
+    // room. Returns the number of weapons that fired. Area weapons need `area`.
+    int step_all(double dt, Vec2 origin, const EnemyManager &enemies,
+                 ProjectileSystem &projectiles, CombatRng &rng, AreaSink *area);
+    // Single-weapon convenience used by bare tests: true if anything fired.
     bool step(double dt, Vec2 origin, const EnemyManager &enemies,
-              ProjectileSystem &projectiles, CombatRng &rng);
-    double cooldown_remaining() const { return cooldown_; }
-    double interval() const { return interval_; }
+              ProjectileSystem &projectiles, CombatRng &rng,
+              AreaSink *area = nullptr) {
+        return step_all(dt, origin, enemies, projectiles, rng, area) > 0;
+    }
+    // Primary (first) weapon, for the legacy accessors.
+    double cooldown_remaining() const {
+        return slots_.empty() ? 0.0 : slots_[0].cooldown;
+    }
+    double interval() const { return slots_.empty() ? 0.0 : slots_[0].interval; }
+    const std::vector<Slot> &slots() const { return slots_; }
 
 private:
+    bool fire(Slot &slot, Vec2 origin, const EnemyManager &enemies,
+              ProjectileSystem &projectiles, CombatRng &rng, AreaSink *area);
+
     CombatStats stats_;
-    CombatConfig config_;
-    double interval_ = 0.8;
-    double cooldown_ = 0.0;
+    std::vector<Slot> slots_;
 };
 
 class WaveDirector {
@@ -215,8 +287,21 @@ public:
     bool update_player_stats(const CombatStats &stats,
                              double weapon_damage_scale);
 
+    // Installs the real equipped loadout (from compile_loadout). Atomic: an
+    // empty, oversized, duplicate or invalid list is rejected with no change.
+    // Existing weapons update in place (cooldown fractions, enemies, RNG, HP
+    // untouched); newly present weapons start ready. A bare CombatWorld keeps
+    // its single config-driven bubble weapon until this is first called.
+    bool set_loadout(const std::vector<WeaponSpec> &specs);
+
     // Moves pending kill events out; the internal buffer is emptied.
     std::vector<KillEvent> take_kill_events();
+
+    const std::vector<Zone> &zones() const { return zones_; }
+    const std::vector<BurstVisual> &bursts() const { return bursts_; }
+    const std::vector<WeaponManager::Slot> &weapon_slots() const {
+        return weapon_.slots();
+    }
 
     const std::vector<Enemy> &enemies() const { return enemies_.enemies(); }
     const std::vector<Projectile> &projectiles() const {
@@ -228,7 +313,12 @@ public:
     double hp() const { return hp_; }
     double max_hp() const { return stats_.max_hp; }
     const CombatStats &stats() const { return stats_; }
-    double weapon_damage() const { return config_.weapon_base_damage; }
+    // Primary weapon's per-hit base damage (before player multipliers).
+    double weapon_damage() const {
+        return legacy_loadout_ || weapon_.slots().empty()
+                   ? config_.weapon_base_damage
+                   : weapon_.slots()[0].spec.damage;
+    }
     double weapon_cooldown() const { return weapon_.cooldown_remaining(); }
     double weapon_interval() const { return weapon_.interval(); }
     std::uint32_t kill_count() const { return kill_count_; }
@@ -239,6 +329,15 @@ public:
 private:
     void substep(double h, Vec2 player, GameStateManager &states, bool &died);
     void resolve_projectiles();
+    void resolve_bursts(const std::vector<BurstAttack> &attacks);
+    void step_zones(double h);
+    void step_visuals(double h);
+    // Single damage path for projectiles, bursts and zones. Skips dead
+    // enemies; records the kill (count + event) exactly once. Returns true if
+    // the hit landed. Knockback pushes survivors away from `source`.
+    bool damage_enemy(Enemy &enemy, double damage, Vec2 source,
+                      double knockback);
+    void purge_dead();
     bool resolve_contacts(double h, Vec2 player);
 
     CombatStats stats_;
@@ -249,6 +348,10 @@ private:
     WeaponManager weapon_;
     WaveDirector waves_;
     std::vector<KillEvent> kill_events_;
+    std::vector<Zone> zones_;
+    std::vector<BurstVisual> bursts_;
+    static constexpr std::size_t kMaxBurstVisuals = 64;
+    bool legacy_loadout_ = true;
     double base_weapon_damage_ = 12.0;
     double hp_ = 0.0;
     double invulnerable_ = 0.0;

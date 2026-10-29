@@ -153,40 +153,186 @@ void ProjectileSystem::clear() { projectiles_.clear(); }
 
 // ----------------------------------------------------------- WeaponManager
 
+namespace {
+
+constexpr std::size_t kMaxLoadout = WeaponInventory::kMaxWeapons;
+constexpr double kSpreadStep = 0.2; // radians between fanned projectiles
+
+double interval_of(const WeaponSpec &spec, const CombatStats &stats) {
+    return spec.cooldown /
+           sanitize(stats.attack_speed_multiplier, 0.1, 5.0, 1.0);
+}
+
+WeaponSpec legacy_spec(const CombatConfig &c) {
+    WeaponSpec s;
+    s.id = "bubble_shot";
+    s.kind = AttackKind::kProjectile;
+    s.damage = c.weapon_base_damage;
+    s.cooldown = c.weapon_base_interval;
+    s.range = c.weapon_range;
+    s.projectile_speed = c.projectile_speed;
+    s.projectile_radius = c.projectile_radius;
+    s.projectile_lifetime = c.projectile_lifetime;
+    return s;
+}
+
+// Rebuilds the slot list. Slots with a matching id keep their cooldown
+// fraction; new ids start ready.
+std::vector<WeaponManager::Slot> merge_slots(
+    const std::vector<WeaponManager::Slot> &old,
+    const std::vector<WeaponSpec> &specs, const CombatStats &stats) {
+    std::vector<WeaponManager::Slot> next;
+    next.reserve(specs.size());
+    for (const WeaponSpec &spec : specs) {
+        WeaponManager::Slot slot;
+        slot.spec = spec;
+        slot.interval = interval_of(spec, stats);
+        for (const WeaponManager::Slot &o : old) {
+            if (o.spec.id == spec.id) {
+                const double fraction =
+                    o.interval > 0.0 ? std::min(1.0, o.cooldown / o.interval)
+                                     : 0.0;
+                slot.cooldown = fraction * slot.interval;
+                break;
+            }
+        }
+        next.push_back(std::move(slot));
+    }
+    return next;
+}
+
+} // namespace
+
 void WeaponManager::configure(const CombatStats &stats,
                               const CombatConfig &config) {
     stats_ = stats;
-    config_ = config;
-    const double speed =
-        sanitize(stats.attack_speed_multiplier, 0.1, 5.0, 1.0);
-    interval_ = config.weapon_base_interval / speed;
-    cooldown_ = 0.0;
+    slots_ = merge_slots({}, {legacy_spec(config)}, stats_);
 }
 
-void WeaponManager::reset() { cooldown_ = 0.0; }
+void WeaponManager::reset() {
+    for (Slot &s : slots_) {
+        s.cooldown = 0.0;
+    }
+}
 
 void WeaponManager::reconfigure(const CombatStats &stats,
                                 const CombatConfig &config) {
-    const double old_interval = interval_;
-    const double fraction =
-        old_interval > 0.0 ? std::min(1.0, cooldown_ / old_interval) : 0.0;
     stats_ = stats;
-    config_ = config;
-    const double speed =
-        sanitize(stats.attack_speed_multiplier, 0.1, 5.0, 1.0);
-    interval_ = config.weapon_base_interval / speed;
-    cooldown_ = fraction * interval_;
+    slots_ = merge_slots(slots_, {legacy_spec(config)}, stats_);
 }
 
-bool WeaponManager::step(double dt, Vec2 origin, const EnemyManager &enemies,
-                         ProjectileSystem &projectiles, CombatRng &rng) {
-    cooldown_ = std::max(0.0, cooldown_ - dt);
-    if (cooldown_ > 0.0) {
+bool WeaponManager::set_loadout(const CombatStats &stats,
+                                const std::vector<WeaponSpec> &specs) {
+    if (specs.empty() || specs.size() > kMaxLoadout) {
         return false;
     }
-    const int target = enemies.nearest(origin, config_.weapon_range);
+    for (std::size_t i = 0; i < specs.size(); ++i) {
+        if (!validate_weapon_spec(specs[i]).empty()) {
+            return false;
+        }
+        for (std::size_t j = 0; j < i; ++j) {
+            if (specs[j].id == specs[i].id) {
+                return false;
+            }
+        }
+    }
+    stats_ = stats;
+    slots_ = merge_slots(slots_, specs, stats_);
+    return true;
+}
+
+void WeaponManager::update_stats(const CombatStats &stats) {
+    stats_ = stats;
+    std::vector<WeaponSpec> specs;
+    specs.reserve(slots_.size());
+    for (const Slot &s : slots_) {
+        specs.push_back(s.spec);
+    }
+    slots_ = merge_slots(slots_, specs, stats_);
+}
+
+int WeaponManager::step_all(double dt, Vec2 origin, const EnemyManager &enemies,
+                            ProjectileSystem &projectiles, CombatRng &rng,
+                            AreaSink *area) {
+    int fired = 0;
+    for (Slot &slot : slots_) {
+        slot.cooldown = std::max(0.0, slot.cooldown - dt);
+        if (slot.cooldown > 0.0) {
+            continue;
+        }
+        if (fire(slot, origin, enemies, projectiles, rng, area)) {
+            slot.cooldown = slot.interval; // only a real attack spends it
+            ++fired;
+        }
+    }
+    return fired;
+}
+
+bool WeaponManager::fire(Slot &slot, Vec2 origin, const EnemyManager &enemies,
+                         ProjectileSystem &projectiles, CombatRng &rng,
+                         AreaSink *area) {
+    const WeaponSpec &spec = slot.spec;
+    switch (spec.kind) {
+    case AttackKind::kBurst: {
+        if (area == nullptr) {
+            return false;
+        }
+        bool any = false;
+        for (const Enemy &e : enemies.enemies()) {
+            const double reach = spec.area_radius + e.radius;
+            if (e.hp > 0.0 && dist_sq(origin, e.position) <= reach * reach) {
+                any = true;
+                break;
+            }
+        }
+        if (!any) {
+            return false; // stays ready; an empty sweep is not spent
+        }
+        const bool crit = DamageSystem::roll_crit(stats_.crit_chance, rng);
+        BurstAttack b;
+        b.center = origin;
+        b.radius = spec.area_radius;
+        b.damage = DamageSystem::outgoing_damage(spec.damage,
+                                                 stats_.damage_multiplier, crit);
+        b.knockback = spec.knockback;
+        b.critical = crit;
+        area->bursts.push_back(b);
+        return true;
+    }
+    case AttackKind::kZone: {
+        if (area == nullptr || area->zones == nullptr ||
+            area->zones->size() >= AreaSink::kMaxZones) {
+            return false;
+        }
+        const int target = enemies.nearest(origin, spec.range);
+        if (target < 0) {
+            return false;
+        }
+        const bool crit = DamageSystem::roll_crit(stats_.crit_chance, rng);
+        Zone z;
+        z.position = enemies.enemies()[static_cast<std::size_t>(target)].position;
+        z.radius = spec.area_radius;
+        z.damage = DamageSystem::outgoing_damage(spec.damage,
+                                                 stats_.damage_multiplier, crit);
+        z.knockback = spec.knockback;
+        z.tick_interval = spec.tick_interval;
+        z.next_tick = spec.tick_interval;
+        z.lifetime = spec.area_lifetime;
+        z.critical = crit;
+        area->zones->push_back(z);
+        return true;
+    }
+    case AttackKind::kProjectile:
+        break;
+    }
+    const int target = enemies.nearest(origin, spec.range);
     if (target < 0) {
         return false; // stays ready; no target means no cooldown spent
+    }
+    if (projectiles.projectiles().size() + static_cast<std::size_t>(
+                                               std::max(1, spec.projectile_count)) >
+        ProjectileSystem::kMaxProjectiles) {
+        return false;
     }
     const Vec2 tp = enemies.enemies()[static_cast<std::size_t>(target)].position;
     double dx = tp.x - origin.x;
@@ -199,19 +345,25 @@ bool WeaponManager::step(double dt, Vec2 origin, const EnemyManager &enemies,
         dx = 1.0;
         dy = 0.0;
     }
-    const bool crit = DamageSystem::roll_crit(stats_.crit_chance, rng);
-    Projectile p;
-    p.position = origin;
-    p.velocity = Vec2{dx * config_.projectile_speed, dy * config_.projectile_speed};
-    p.damage = DamageSystem::outgoing_damage(config_.weapon_base_damage,
-                                             stats_.damage_multiplier, crit);
-    p.radius = config_.projectile_radius;
-    p.remaining_life = config_.projectile_lifetime;
-    p.critical = crit;
-    if (!projectiles.spawn(p)) {
-        return false;
+    const double base_angle = std::atan2(dy, dx);
+    const int count = std::max(1, spec.projectile_count);
+    for (int i = 0; i < count; ++i) {
+        const double a =
+            base_angle + (static_cast<double>(i) - 0.5 * (count - 1)) * kSpreadStep;
+        const bool crit = DamageSystem::roll_crit(stats_.crit_chance, rng);
+        Projectile p;
+        p.position = origin;
+        p.velocity = Vec2{std::cos(a) * spec.projectile_speed,
+                          std::sin(a) * spec.projectile_speed};
+        p.damage = DamageSystem::outgoing_damage(spec.damage,
+                                                 stats_.damage_multiplier, crit);
+        p.radius = spec.projectile_radius;
+        p.remaining_life = spec.projectile_lifetime;
+        p.critical = crit;
+        p.pierce_left = spec.pierce_count;
+        p.knockback = spec.knockback;
+        projectiles.spawn(p);
     }
-    cooldown_ = interval_;
     return true;
 }
 
@@ -322,7 +474,19 @@ bool CombatWorld::update_player_stats(const CombatStats &stats,
     config_.weapon_base_damage =
         sanitize(base_weapon_damage_ * weapon_damage_scale, 0.0, 1e9,
                  base_weapon_damage_);
-    weapon_.reconfigure(stats_, config_);
+    if (legacy_loadout_) {
+        weapon_.reconfigure(stats_, config_);
+    } else {
+        weapon_.update_stats(stats_); // loadout damage comes from set_loadout
+    }
+    return true;
+}
+
+bool CombatWorld::set_loadout(const std::vector<WeaponSpec> &specs) {
+    if (!weapon_.set_loadout(stats_, specs)) {
+        return false;
+    }
+    legacy_loadout_ = false;
     return true;
 }
 
@@ -359,13 +523,61 @@ void CombatWorld::substep(double h, Vec2 player, GameStateManager &states,
     combat_time_ += h;
     waves_.step(h, combat_time_, enemies_, rng_);
     enemies_.step(h, player);
-    weapon_.step(h, player, enemies_, projectiles_, rng_);
+    AreaSink area;
+    area.zones = &zones_;
+    weapon_.step_all(h, player, enemies_, projectiles_, rng_, &area);
+    // Order: burst, projectiles, zone ticks. Each phase skips already-dead
+    // enemies, so a simultaneous kill is counted once.
+    resolve_bursts(area.bursts);
     projectiles_.step(h);
     resolve_projectiles();
+    step_zones(h);
+    step_visuals(h);
     if (resolve_contacts(h, player)) {
         died = true;
         states.lose();
     }
+}
+
+bool CombatWorld::damage_enemy(Enemy &e, double damage, Vec2 source,
+                               double knockback) {
+    if (e.hp <= 0.0) {
+        return false;
+    }
+    e.hp -= damage;
+    if (e.hp <= 0.0) {
+        ++kill_count_;
+        if (kill_events_.size() < kMaxKillEvents) {
+            kill_events_.push_back(KillEvent{e.position, e.xp_value, e.id});
+        } else {
+            ++dropped_kill_events_;
+        }
+    } else if (knockback > 0.0) {
+        double dx = e.position.x - source.x;
+        double dy = e.position.y - source.y;
+        const double d = std::sqrt(dx * dx + dy * dy);
+        if (d > 1e-9) {
+            dx /= d;
+            dy /= d;
+        } else {
+            dx = 1.0;
+            dy = 0.0;
+        }
+        e.position.x = std::min(config_.arena_half_width,
+                                std::max(-config_.arena_half_width,
+                                         e.position.x + dx * knockback));
+        e.position.y = std::min(config_.arena_half_height,
+                                std::max(-config_.arena_half_height,
+                                         e.position.y + dy * knockback));
+    }
+    return true;
+}
+
+void CombatWorld::purge_dead() {
+    std::vector<Enemy> &foes = enemies_.mutable_enemies();
+    foes.erase(std::remove_if(foes.begin(), foes.end(),
+                              [](const Enemy &e) { return e.hp <= 0.0; }),
+               foes.end());
 }
 
 void CombatWorld::resolve_projectiles() {
@@ -373,24 +585,24 @@ void CombatWorld::resolve_projectiles() {
     std::vector<Enemy> &foes = enemies_.mutable_enemies();
     for (Projectile &p : shots) {
         for (Enemy &e : foes) {
-            if (e.hp <= 0.0) {
+            if (e.hp <= 0.0 || p.remaining_life <= 0.0) {
                 continue;
+            }
+            if (std::find(p.hit_ids.begin(), p.hit_ids.end(), e.id) !=
+                p.hit_ids.end()) {
+                continue; // never hit the same enemy twice
             }
             const double reach = p.radius + e.radius;
             if (dist_sq(p.position, e.position) > reach * reach) {
                 continue;
             }
-            e.hp -= p.damage;
-            p.remaining_life = 0.0; // retired: one hit per projectile
-            if (e.hp <= 0.0) {
-                ++kill_count_;
-                if (kill_events_.size() < kMaxKillEvents) {
-                    kill_events_.push_back(KillEvent{e.position, e.xp_value, e.id});
-                } else {
-                    ++dropped_kill_events_;
-                }
+            damage_enemy(e, p.damage, p.position, p.knockback);
+            p.hit_ids.push_back(e.id);
+            if (p.pierce_left <= 0) {
+                p.remaining_life = 0.0; // retired on its last allowed hit
+                break;
             }
-            break;
+            --p.pierce_left;
         }
     }
     shots.erase(std::remove_if(shots.begin(), shots.end(),
@@ -398,9 +610,56 @@ void CombatWorld::resolve_projectiles() {
                                    return p.remaining_life <= 0.0;
                                }),
                 shots.end());
-    foes.erase(std::remove_if(foes.begin(), foes.end(),
-                              [](const Enemy &e) { return e.hp <= 0.0; }),
-               foes.end());
+    purge_dead();
+}
+
+void CombatWorld::resolve_bursts(const std::vector<BurstAttack> &attacks) {
+    for (const BurstAttack &b : attacks) {
+        for (Enemy &e : enemies_.mutable_enemies()) {
+            const double reach = b.radius + e.radius;
+            if (e.hp > 0.0 && dist_sq(b.center, e.position) <= reach * reach) {
+                damage_enemy(e, b.damage, b.center, b.knockback);
+            }
+        }
+        if (bursts_.size() < kMaxBurstVisuals) {
+            bursts_.push_back(BurstVisual{b.center, b.radius, 0.0});
+        }
+    }
+    purge_dead();
+}
+
+void CombatWorld::step_zones(double h) {
+    for (Zone &z : zones_) {
+        z.age += h;
+        // Ticks land at k * tick_interval for every k with that time <= both
+        // the current age and the lifetime.
+        while (z.next_tick <= z.age + 1e-9 && z.next_tick <= z.lifetime + 1e-9) {
+            for (Enemy &e : enemies_.mutable_enemies()) {
+                const double reach = z.radius + e.radius;
+                if (e.hp > 0.0 && dist_sq(z.position, e.position) <= reach * reach) {
+                    damage_enemy(e, z.damage, z.position, z.knockback);
+                }
+            }
+            z.next_tick += z.tick_interval;
+        }
+    }
+    zones_.erase(std::remove_if(zones_.begin(), zones_.end(),
+                                [](const Zone &z) {
+                                    return z.age >= z.lifetime - 1e-9;
+                                }),
+                 zones_.end());
+    purge_dead();
+}
+
+void CombatWorld::step_visuals(double h) {
+    for (BurstVisual &v : bursts_) {
+        v.age += h;
+    }
+    bursts_.erase(std::remove_if(bursts_.begin(), bursts_.end(),
+                                 [](const BurstVisual &v) {
+                                     return v.age >= BurstVisual::kDuration;
+                                 }),
+                  bursts_.end());
 }
 
 bool CombatWorld::resolve_contacts(double h, Vec2 player) {
