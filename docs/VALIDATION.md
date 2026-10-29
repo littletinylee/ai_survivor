@@ -31,3 +31,6 @@ WindowsCI编译器库存实际证据run40767419942：14.29.30133、14.44.35207�
 2026-10-29 P2-01：Sonnet实现独立weapon模块、通用Projectile/Burst/Zone、完整装备同步、卡片与区域视觉；本次调用达到1USD列表估价上限后停止，未重复调用。Codex实际构建并发现旧卡片测试仍假设单武器，按真实实现更新过滤断言，补最大等级伤害边界、zone击退、装备栏、原生真实卡片获取/伤害/升级/区域测试与升级实际伤害/六武器区域容量回归。最终Windows构建、100项GoogleTest、原生Headless和2冷启动通过。截图build/weapons00000002.png已检查。真实鱼seed1 kite Lost150.533336344秒/148杀/15卡/最多3武器，seed2 stationary Lost25.133333836秒；20分钟平衡仍开放。云端CI待确认。
 
 2026-10-29 ART-01a：用户确认参考图AI生成；ChatGPT image_gen生成idle-v1.png，Haiku（CLI估价0.04261442USD，实际扣费unknown）实现按配置缓存ResourceLoader/Texture2D、选人头像、战斗全图显示与镜像，Codex修长描述换行。Windows构建、107项GoogleTest、原生贴图加载验收及2冷启动通过；选择/战斗/三武器截图已检查，角色明确为蓝发鲸尾女仆少女。额外在独立冷启动夹具中故意配置缺失sprite路径，Headless退出1并报告Character load failed及INTEGRATION_FAILED，没有静默回退。战斗规则未改，seed1 kite报告仍621.00001242秒Lost、hash6f7b6017911fec6b。新PNG和确切提示词/来源清单入开发资产；动画asset保持空。行走图集两稿因尾巴跨单元格等未验收，不使用、不声称动画已完成。
+
+2026-10-29 P2-02b：Sonnet实现三类敌人、锁定预警冲刺与恢复/重新准备、45/90秒引入、区别体型/属性/XP及原生视觉。调用到0.5USD自设估价上限停止，Codex审查修新测试累计时间夹具错误，未重试该调用。实际Windows编译、117项GoogleTest、原生敌人状态检查及2冷启动通过。build/enemy-variety00000002.png已检查，普通圆/冲锋箭/重装方和预警线可辨。正常鱼seed1 kite Lost615.683345647秒/2077杀，seed2 Lost623.033345794秒/2132杀，stationary仍25.133333836秒；20分钟平衡未达成。
+用户要求总控用Subrouter：runner增加--provider参数并在state记录，13项离线runner测试及路由mock通过；不改全局配置或放宽sandbox。

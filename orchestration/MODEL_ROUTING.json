@@ -38,5 +38,7 @@
     "reference": "Blue-haired whale-tail maid girl three-view supplied by user; fish-shaped graphics are temporary placeholders",
     "code_implementation": "Claude Haiku/Sonnet",
     "status": "ChatGPT idle PNG integrated and locally verified; walk atlas drafts not accepted; first-frame source/prompt recorded"
-  }
+  },
+  "controller_provider": "subrouter",
+  "controller_launch": "python tools/project_runner.py run --provider subrouter --max-cycles 6 --cycle-timeout 900 --total-hours 4"
 }

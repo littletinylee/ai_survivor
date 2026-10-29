@@ -23,7 +23,8 @@ def make_root(tmp, budget=GOOD_BUDGET, queue=None):
 
 
 def args(**kw):
-    return argparse.Namespace(**{"max_cycles": 3, "cycle_timeout": 5, "total_hours": 1.0, **kw})
+    return argparse.Namespace(**{"max_cycles": 3, "cycle_timeout": 5, "total_hours": 1.0,
+                                "provider": "auto", **kw})
 
 
 def state(root):
@@ -144,18 +145,26 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(state(root)["reason"], "test_exit_1")
 
     def test_agent_command_shape(self):
-        root = make_root(self.tmp.name)
-        with mock.patch.object(pr, "run_bounded", return_value=(1, "ok")) as rb, \
-                mock.patch.object(pr, "fingerprint", return_value="a"):
-            pr.run(args(max_cycles=1), root)
-        cmd = rb.call_args_list[0].args[0]
-        self.assertEqual(cmd[:3], ["/abs/pwsh", "-NoProfile", "-File"])
-        self.assertIn("-Provider", cmd)
-        self.assertEqual(cmd[-1], "auto")
+        for provider in ("auto", "official", "subrouter"):
+            root = make_root(self.tmp.name)
+            with mock.patch.object(pr, "run_bounded", return_value=(1, "ok")) as rb, \
+                    mock.patch.object(pr, "fingerprint", return_value="a"):
+                pr.run(args(max_cycles=1, provider=provider), root)
+            cmd = rb.call_args_list[0].args[0]
+            self.assertEqual(cmd[:3], ["/abs/pwsh", "-NoProfile", "-File"])
+            self.assertIn("-Provider", cmd)
+            self.assertEqual(cmd[-1], provider)
+            self.assertEqual(state(root)["provider"], provider)
+
+    def test_provider_cli_selection(self):
+        with mock.patch.object(pr, "run", return_value=0) as run:
+            self.assertEqual(pr.main(["run", "--provider", "subrouter"]), 0)
+            self.assertEqual(run.call_args.args[0].provider, "subrouter")
 
     def test_arg_bounds(self):
         for bad in (["run", "--max-cycles", "0"], ["run", "--max-cycles", "999"],
-                    ["run", "--cycle-timeout", "-1"], ["run", "--total-hours", "0"]):
+                    ["run", "--cycle-timeout", "-1"], ["run", "--total-hours", "0"],
+                    ["run", "--provider", "unknown"]):
             with self.assertRaises(SystemExit), mock.patch("sys.stderr"):
                 pr.main(bad)
 

@@ -180,7 +180,7 @@ def run(args, root=ROOT):
             return run_bounded(cmd, root, timeout, p["stop"], p["log"], tick)
 
         try:
-            save()
+            save(provider=args.provider)
             missing = [r for r in REQUIRED if not (root / r).is_file()]
             if missing:
                 save(phase="stopped", reason="missing_files: " + ", ".join(missing))
@@ -213,7 +213,7 @@ def run(args, root=ROOT):
                 before = fingerprint(root, git)
                 cycle_deadline = min(deadline, time.monotonic() + args.cycle_timeout)
                 steps = [("agent", ps + [str(root / "tools/codex-task.ps1"), "-TaskFile",
-                                         str(root / "orchestration/CONTINUE_TASK.md"), "-Provider", "auto"]),
+                                         str(root / "orchestration/CONTINUE_TASK.md"), "-Provider", args.provider]),
                          ("build", ps + [str(root / "tools/build.ps1")]),
                          ("test", ps + [str(root / "tools/test.ps1")])]
                 failed = None
@@ -261,6 +261,8 @@ def main(argv=None):
     r.add_argument("--max-cycles", type=bounded_num(int, 1, 24), default=6)
     r.add_argument("--cycle-timeout", type=bounded_num(int, 1, 3600), default=900)
     r.add_argument("--total-hours", type=bounded_num(float, 0, 24), default=4.0)
+    r.add_argument("--provider", choices=("auto", "official", "subrouter"), default="auto",
+                   help="controller provider; subrouter skips official quota entirely")
     sub.add_parser("status", help="print saved status JSON")
     sub.add_parser("stop", help="create STOP sentinel (kills nothing)")
     a = ap.parse_args(argv)

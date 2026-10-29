@@ -836,9 +836,48 @@ void AISurvivorsBootstrap::_draw() {
             const Vector2 ep =
                 center + Vector2(static_cast<float>(e.position.x),
                                  static_cast<float>(e.position.y));
-            draw_circle(ep, static_cast<float>(e.radius), coral);
-            draw_arc(ep, static_cast<float>(e.radius), 0.0f, 6.2831853f, 24,
-                     coral_edge, 3.0f);
+            const float r = static_cast<float>(e.radius);
+            if (e.kind == EnemyKind::kBrute) {
+                // Purple armoured block.
+                const godot::Rect2 body(ep - Vector2(r, r), Vector2(2.0f * r, 2.0f * r));
+                draw_rect(body, Color(0.50f, 0.25f, 0.75f, 1.0f), true);
+                draw_rect(godot::Rect2(ep - Vector2(r * 0.6f, r * 0.6f),
+                                       Vector2(1.2f * r, 1.2f * r)),
+                          Color(0.32f, 0.14f, 0.50f, 1.0f), true);
+                draw_rect(body, Color(0.85f, 0.70f, 1.0f, 1.0f), false, 3.0f);
+            } else if (e.kind == EnemyKind::kCharger) {
+                // Amber arrow pointing along the aim (toward the player while
+                // approaching, the locked vector from windup on).
+                Vector2 dir(static_cast<float>(e.aim.x), static_cast<float>(e.aim.y));
+                if (e.phase == ChargerPhase::kApproach && world_) {
+                    const Vector2 to_player(static_cast<float>(player_.position().x) - static_cast<float>(e.position.x),
+                                            static_cast<float>(player_.position().y) - static_cast<float>(e.position.y));
+                    if (to_player.length() > 0.001f) dir = to_player.normalized();
+                }
+                const Vector2 side(-dir.y, dir.x);
+                const float windup_t = e.phase == ChargerPhase::kWindup
+                    ? 1.0f - static_cast<float>(e.phase_remaining / ChargerTuning::kWindupSeconds)
+                    : 0.0f;
+                Color fill(1.0f, 0.70f, 0.10f, 1.0f);
+                if (e.phase == ChargerPhase::kWindup) {
+                    const bool flash = std::fmod(windup_t * 6.0f, 1.0f) < 0.5f;
+                    fill = flash ? Color(1.0f, 1.0f, 0.75f, 1.0f) : Color(1.0f, 0.45f, 0.05f, 1.0f);
+                    const Vector2 end = ep + dir * 230.0f; // aim line (dash is ~3x speed * 0.3s)
+                    draw_line(ep, end, Color(1.0f, 0.35f, 0.10f, 0.35f + 0.5f * windup_t), 2.0f + 4.0f * windup_t);
+                } else if (e.phase == ChargerPhase::kRecovery) {
+                    fill = Color(0.55f, 0.42f, 0.18f, 1.0f); // dull = vulnerable
+                }
+                godot::PackedVector2Array tri;
+                tri.push_back(ep + dir * (r * 1.5f));
+                tri.push_back(ep - dir * r + side * (r * 1.0f));
+                tri.push_back(ep - dir * r - side * (r * 1.0f));
+                draw_colored_polygon(tri, fill);
+                tri.push_back(tri[0]);
+                draw_polyline(tri, Color(0.45f, 0.25f, 0.02f, 1.0f), 3.0f);
+            } else {
+                draw_circle(ep, r, coral);
+                draw_arc(ep, r, 0.0f, 6.2831853f, 24, coral_edge, 3.0f);
+            }
         }
         // Data-pool zones: translucent disc with a ring and tick-ripple.
         for (const Zone &z : world_->zones()) {
@@ -1200,6 +1239,85 @@ bool AISurvivorsBootstrap::run_weapon_checks(bool keep_scene) {
     return true;
 }
 
+bool AISurvivorsBootstrap::run_enemy_checks(bool keep_scene) {
+    const auto fail = [this](const char *detail) {
+        godot::UtilityFunctions::print(
+            String("AI_SURVIVORS_INTEGRATION_FAILED: ") + String(detail));
+        on_back_to_menu_pressed();
+        return false;
+    };
+    start_battle("deepseek_big_fish");
+    if (!world_) return fail("enemy fixture did not start");
+    CombatConfig config;
+    config.waves_enabled = false;
+    world_ = std::make_unique<CombatWorld>(CombatStats::from_character(*active_character_),
+                                           21, config);
+    EnemySpawn spec;
+    spec.hp = 100000.0; // survive the auto weapons; the fixture is about behaviour
+    spec.contact_damage = 0.0;
+    spec.xp_value = 0.0;
+    spec.speed = 0.0;
+    spec.position = Vec2{-260.0, -150.0};
+    world_->spawn_enemy(spec); // chaser, config radius
+    spec.kind = EnemyKind::kBrute;
+    spec.radius = 28.0;
+    spec.position = Vec2{260.0, -150.0};
+    world_->spawn_enemy(spec);
+    spec.kind = EnemyKind::kCharger;
+    spec.radius = 14.0;
+    spec.speed = 100.0;
+    spec.position = Vec2{-200.0, 60.0};
+    world_->spawn_enemy(spec);
+    if (world_->enemies().size() != 3 ||
+        world_->enemies()[0].radius != config.enemy_radius ||
+        world_->enemies()[1].radius != 28.0 || world_->enemies()[2].radius != 14.0 ||
+        world_->enemies()[1].kind != EnemyKind::kBrute) {
+        return fail("distinct enemy kinds/radii did not load into the manager");
+    }
+    Vec2 player{0.0, 0.0};
+    int frames = 0;
+    while (world_->enemies()[2].phase != ChargerPhase::kWindup && frames++ < 10) {
+        world_->tick(states_, 1.0 / 60.0, player);
+    }
+    if (world_->enemies()[2].phase != ChargerPhase::kWindup) {
+        return fail("charger did not start a windup in range");
+    }
+    const Vec2 windup_pos = world_->enemies()[2].position;
+    const Vec2 locked = world_->enemies()[2].aim;
+    for (int i = 0; i < 20; ++i) {
+        world_->tick(states_, 1.0 / 60.0, player);
+    }
+    if (world_->enemies()[2].phase != ChargerPhase::kWindup ||
+        world_->enemies()[2].position.x != windup_pos.x ||
+        world_->enemies()[2].position.y != windup_pos.y) {
+        return fail("charger moved during its windup");
+    }
+    if (keep_scene) {
+        refresh_battle_ui();
+        set_physics_process(false); // screenshot fixture: frozen mid-windup
+        return true;
+    }
+    player = Vec2{0.0, 200.0}; // the player dodges after the telegraph
+    for (int i = 0; i < 40 && world_->enemies()[2].phase != ChargerPhase::kDash; ++i) {
+        world_->tick(states_, 1.0 / 60.0, player);
+    }
+    const Enemy &charger = world_->enemies()[2];
+    if (charger.phase != ChargerPhase::kDash || charger.aim.x != locked.x ||
+        charger.aim.y != locked.y) {
+        return fail("charger did not dash along the locked aim");
+    }
+    const Vec2 dash_start = charger.position;
+    for (int i = 0; i < 6; ++i) {
+        world_->tick(states_, 1.0 / 60.0, player);
+    }
+    if (world_->enemies()[2].position.x == dash_start.x &&
+        world_->enemies()[2].position.y == dash_start.y) {
+        return fail("charger dash did not move");
+    }
+    on_back_to_menu_pressed();
+    return true;
+}
+
 bool AISurvivorsBootstrap::run_core_checks() {
     const auto fail = [](const char *detail) {
         godot::UtilityFunctions::print(String("AI_SURVIVORS_INTEGRATION_FAILED: ") +
@@ -1313,6 +1431,7 @@ void AISurvivorsBootstrap::_ready() {
     bool visual_pause = false;
     bool visual_upgrade = false;
     bool visual_weapons = false;
+    bool visual_enemies = false;
     const PackedStringArray args =
         OS::get_singleton()->get_cmdline_user_args();
     for (int64_t i = 0; i < args.size(); ++i) {
@@ -1327,6 +1446,8 @@ void AISurvivorsBootstrap::_ready() {
             visual_upgrade = true;
         } else if (args[i] == "--visual-weapons") {
             visual_weapons = true;
+        } else if (args[i] == "--visual-enemies") {
+            visual_enemies = true;
         } else if (args[i] == "--visual-pause") {
             visual_battle = true;
             visual_pause = true;
@@ -1358,6 +1479,8 @@ void AISurvivorsBootstrap::_ready() {
         // Normal scene stays open until the window is closed.
         if (visual_weapons && load_error_.empty()) {
             if (!run_weapon_checks(true)) get_tree()->quit(1);
+        } else if (visual_enemies && load_error_.empty()) {
+            if (!run_enemy_checks(true)) get_tree()->quit(1);
         } else if (visual_battle && load_error_.empty()) {
             start_battle(registry_.characters().front().id);
             // Deterministic warm-up so the screenshot shows a populated arena.
@@ -1395,6 +1518,10 @@ void AISurvivorsBootstrap::_ready() {
         return;
     }
     if (!run_weapon_checks()) {
+        get_tree()->quit(1);
+        return;
+    }
+    if (!run_enemy_checks(false)) {
         get_tree()->quit(1);
         return;
     }

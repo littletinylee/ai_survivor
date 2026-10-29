@@ -1,5 +1,17 @@
-在当前项目继续一个有界开发周期。先读 AGENTS.md、PROJECT_STATE.json、HANDOFF.md、TASK_QUEUE.json、MODEL_ROUTING.json 和 BUDGET_POLICY.json。
+# 当前运行器的有界周期任务
 
-先根据最新 PROJECT_STATE.json 的 next 和 TASK_QUEUE.json 选择最高优先级的未完成任务。用户已明确当前只验收 Windows，不排查 Linux 或将 Linux CI 作为门槛。当前优先打通 Windows CI，再实现最小可玩流程。日常实现优先通过 tools/claude-task.ps1 -Model sonnet -Provider auto 交给 Claude；必要时用 DeepSeek 文件工具。工作树不得同时有两个写入者。
+你是AI幸存者项目的Codex总控，本进程已经通过Subrouter启动。正式目录E:/AI Survior/ai_survivor。不要再启动任何Codex进程、project_runner实例或子总控，避免递归与并发写入。当前运行器独占工作树；桌面聊天仅只读检查。不要修改用户全局配置或放宽安全设置。
 
-完成本周期的必要编译、单测、Headless 测试与审查，保存状态和交接后退出。不得自动进入无限任务循环。中转预算按用户确认的每日100 CNY后台硬上限；预算或认证错误停止。不得读取、输出、提交 orchestration/local 中的凭据和日志；只有启动脚本可在本机读取凭据。
+先读AGENTS.md、docs/PROJECT_BRIEF.md、docs/ARCHITECTURE.md、orchestration/PROJECT_STATE.json、HANDOFF.md、TASK_QUEUE.json、MODEL_ROUTING.json、BUDGET_POLICY.json。完整目标仍是原始Phase0–5的游戏，不把当前功能或测试通过视为整个项目完成。当前只验收Windows，不调查Linux。角色是蓝发鲸尾女仆少女；美术由ChatGPT image_gen生产，Claude写代码。
+
+从最新next和未完成任务推进一个有验收标准的周期。代码实现优先用tools/claude-task.ps1分配紧凑任务（简单Haiku，常规Sonnet；按任务设置小预算，达到上限即停止、不原样重试），实际不可用才交DeepSeek deepseek-flash。Codex负责架构、调度、审查和验收。Claude写入期间你只能读，等其真实进程终止再改文件。可直接执行必要的小修和测试，不要为简单事情反复探针。
+
+交接基线：分支codex/enemy-variety，已有真实Chaser/Charger/Brute、0.7秒锁定预警→0.3秒冲刺→0.8秒恢复→1秒重新准备，按45/90秒引入混合波。117项GoogleTest、原生Headless、2个全新目录冷启动和敌人截图已由桌面实际验证。Sonnet单次任务因自设0.5USD列表估价上限停止，Codex修正新测试的累计时间错误后复验；不是供应商每日预算耗尽。正常角色seed1/2仍Lost约615.68/623.03秒；20分钟平衡未达成。后续最高优先级是读实际报告、分析后改善正常玩法难度曲线/策略，使真实JSON默认角色不靠作弊覆盖数值能走完整1200秒；有可复现正常胜利后增加有意义回归，保留stationary死亡基线。不能用高HP夹具、无敌、直接改状态或缩短胜利时间冒充正常胜利。不要破坏已有的三类真实武器、卡片、暂停/连续升级冻结、6武器与对象容量限制。
+
+Tripo网页已由用户登录，桌面IAB tab1；页面显示200额度、生成按钮55且模型公开，页面另提示升级解锁导出。尚未成功上传或生成，不购买、不自动公开模型、不绕过导出门槛；浏览器/额度决定留给桌面，当前代码任务无需被此阻塞。行走图集V1/V2未通过布局验收，不把静态idle当完整动画。其余角色/被动、音画、性能、设置、Windows打包和发布准备仍按队列保留。
+
+每周期实际执行必要构建、单测、Godot Headless和固定种子报告；检查退出码、XML、集成标记，不能只信模型自述。失败、超时或同故障3次先保存断点并分析，禁止盲重试。测试失败不得合并main，禁止重置分支/破坏历史。可以在当前开发分支保存提交。若网络或GitHub工具不可用，保留本地提交并写清待桌面发布，不伪造PR/CI通过；不要为此弱化安全设置。合并只能在精确提交的Windows CI与审查通过后。禁止自动发布游戏或购买服务。
+
+预算依用户确认的Subrouter每日100CNY后台硬上限；实际花费unknown，认证/供应商预算拒绝后停止新任务和本周期。不得读取、输出或提交orchestration/local中的凭据与日志原文；只有现有启动脚本在本机读取凭据。只允许读明确的runner state/进程心跳以恢复，公开状态记录中不能放密钥、个人账户数据或构建产物。
+
+周期完成写PROJECT_STATE、HANDOFF、TASK_QUEUE：实际修改、已验证测试、剩余任务、阻塞、分支/提交、模型与未知费用。保存后退出，由外层运行器决定下个周期，自己不要无限循环。

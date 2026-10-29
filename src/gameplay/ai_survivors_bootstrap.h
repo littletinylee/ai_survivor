@@ -82,6 +82,9 @@ private:
     bool run_native_checks();
     bool run_progression_checks();
     bool run_weapon_checks(bool keep_scene = false);
+    // Hand-placed chaser/brute/charger on the real EnemyManager; keep_scene
+    // freezes mid-windup for --visual-enemies screenshots.
+    bool run_enemy_checks(bool keep_scene = false);
 
     // Run-local state; recreated for every battle.
     WeaponRegistry weapon_registry_ = WeaponRegistry::make_default();
