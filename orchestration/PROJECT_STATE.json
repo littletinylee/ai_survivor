@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "phase": 0,
+  "phase": 1,
   "status": "IN_PROGRESS",
   "date": "2026-10-29",
-  "branch": "feat/phase0-bootstrap",
+  "branch": "feat/experience-upgrades",
   "remote": "git@github.com:littletinylee/ai_survivor.git",
   "completed": [
     "environment_probe",
@@ -15,11 +15,11 @@
     "deepseek_availability_probe"
   ],
   "unverified": [
-    "windows_ci",
-    "phase1_gameplay"
+    "experience_cards",
+    "complete_run_balance"
   ],
-  "next": "Verify Windows CI cold-start mitigation, then mark Phase0/character/combat tasks accepted and implement P1-03 experience/cards",
-  "reason": "Upstream Godot editor documentation shutdown race identified; bounded frame-delay mitigation plus true cold-start regression passed locally, no cache seeding or ignored errors.",
-  "tests": "52 GoogleTest PASS; cached Headless PASS; 3 independent cold first-import + native integration PASS; Windows CI pending mitigation rerun",
+  "next": "P1-03 experience pickups, continuous level-up queue and three valid upgrade cards; preserve six-weapon requirement for supported weapon registry",
+  "reason": "Windows push and PR CI both passed on0d58b1f; PR#1 merged into main at dbead02. Fresh import mitigation locally verified three times and CI verified twice.",
+  "tests": "52 GoogleTest PASS; Windows push+PR CI PASS; cold-start regression PASS; main gameplay baseline merged",
   "workspace": "E:/AI Survior/ai_survivor"
 }

@@ -3,7 +3,7 @@
     {
       "id": "P0-01",
       "title": "Minimal extension and state/timer",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "acceptance": [
         "SCons build succeeds",
         "GoogleTest passes",
@@ -14,7 +14,7 @@
     {
       "id": "P1-01",
       "title": "Character config and WASD movement",
-      "status": "LOCAL_VERIFIED_PENDING_CI",
+      "status": "DONE",
       "acceptance": [
         "All required character fields validated",
         "WASD and arrow keys move the original fish placeholder"
@@ -23,7 +23,7 @@
     {
       "id": "P1-02",
       "title": "Enemy pursuit and automatic projectile combat",
-      "status": "LOCAL_VERIFIED_PENDING_CI",
+      "status": "DONE",
       "acceptance": [
         "Enemies spawn and approach player",
         "Automatic attacks kill enemies",
@@ -33,7 +33,7 @@
     {
       "id": "P1-03",
       "title": "Experience and upgrade cards",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "acceptance": [
         "Kills drop collectable experience",
         "Continuous upgrades queue correctly",
