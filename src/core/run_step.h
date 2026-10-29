@@ -38,7 +38,8 @@ struct RunStepResult {
 // One Playing frame. dt is clamped ONCE to CombatWorld::kMaxAcceptedDelta and
 // that same value drives movement, combat and the survival timer. Order:
 // movement, combat, timer (only if still Playing), XP kills/pickup (only if
-// still Playing), then the upgrade offer. Death in the same frame as the 1200 s
+// still Playing), passive healing from the XP just collected, then the upgrade
+// offer. Death in the same frame as the 1200 s
 // boundary wins because combat runs before the timer.
 RunStepResult advance_run(GameStateManager &states, GameTimer &timer,
                           PlayerController &player, CombatWorld &world,

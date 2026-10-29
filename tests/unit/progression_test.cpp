@@ -27,7 +27,7 @@ CharacterDefinition fish() {
     c.move_speed = 200.0;
     c.pickup_radius = 80.0;
     c.initial_weapon_id = "bubble_shot";
-    c.passive_id = "p";
+    c.passive_id = "none";
     c.passive_description = "p";
     return c;
 }

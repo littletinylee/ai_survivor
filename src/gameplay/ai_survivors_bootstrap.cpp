@@ -490,6 +490,8 @@ void AISurvivorsBootstrap::build_ui() {
                24, false);
 
     xp_label_ = make_label(battle_panel_, "", 16, 330, 48, 400, 24, false);
+    // Right of the XP label; empty unless the character has an active passive.
+    passive_label_ = make_label(battle_panel_, "", 16, 740, 48, 340, 24, false);
     weapons_label_ = make_label(battle_panel_, "", 16, 20, 618, 1060, 28, false);
 
     upgrade_panel_ = make_panel(battle_panel_, "UpgradePanel");
@@ -519,11 +521,14 @@ void AISurvivorsBootstrap::populate_character_buttons() {
         std::snprintf(stats, sizeof(stats), "HP %.0f  速度 %.0f  护甲 %.0f",
                       c.max_hp, c.move_speed, c.armor);
         const String text = to_godot(c.name) + "\n" + to_godot(c.description) +
-                            "\n" + String::utf8(stats);
+                            "\n" + String::utf8(stats) + "\n" +
+                            to_godot(c.passive_description);
+        // Tall enough for name, description, stats and a wrapped passive rule
+        // at 600 px. Rows scroll inside the VBox, so none is clipped.
         Button *button = make_button(character_list_, text, 20, 250.0f,
                                      150.0f + 110.0f * static_cast<float>(i),
-                                     600, 100);
-        button->set_custom_minimum_size(Vector2(600, 140));
+                                     600, 200);
+        button->set_custom_minimum_size(Vector2(600, 200));
         button->set_autowrap_mode(godot::TextServer::AUTOWRAP_WORD_SMART);
         const auto art = art_.find(c.id);
         if (art != art_.end() && has_pixels(art->second.portrait)) {
@@ -623,6 +628,20 @@ void AISurvivorsBootstrap::refresh_battle_ui() {
                       progression_->levels().level(), progression_->levels().xp(),
                       progression_->levels().next_threshold());
         xp_label_->set_text(String::utf8(xp));
+        // Read-only view of the core passive; the core owns all accounting.
+        if (passive_label_ != nullptr) {
+            const PassiveRuntime &passive = progression_->passive();
+            if (passive.active()) {
+                char passive_text[128];
+                std::snprintf(passive_text, sizeof(passive_text),
+                              "吃白饭 %.0f / %.0f   触发 %u 次",
+                              std::floor(passive.progress()), passive.threshold(),
+                              static_cast<unsigned>(passive.proc_count()));
+                passive_label_->set_text(String::utf8(passive_text));
+            } else {
+                passive_label_->set_text("");
+            }
+        }
         std::string text;
         for (const WeaponInventory::Entry &w : progression_->inventory().entries()) {
             const WeaponDefinition *def = weapon_registry_.find(w.id);

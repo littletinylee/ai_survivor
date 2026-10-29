@@ -343,6 +343,12 @@ public:
     // its single config-driven bubble weapon until this is first called.
     bool set_loadout(const std::vector<WeaponSpec> &specs);
 
+    // Restores HP. Only a finite positive amount, only while the player is
+    // alive and `state` is Playing; clamps to max HP and returns the HP
+    // actually restored (0 on any rejection). This is the only way to add HP
+    // besides a max HP increase in update_player_stats; it never revives.
+    double heal(GameState state, double amount);
+
     // Moves pending kill events out; the internal buffer is emptied.
     std::vector<KillEvent> take_kill_events();
 

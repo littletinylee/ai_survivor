@@ -131,6 +131,7 @@ private:
     godot::Control *upgrade_panel_ = nullptr;
     godot::Label *upgrade_title_ = nullptr;
     godot::Label *xp_label_ = nullptr;
+    godot::Label *passive_label_ = nullptr;
     godot::Label *weapons_label_ = nullptr;
     godot::Label *overlay_title_ = nullptr;
     godot::Control *resume_button_ = nullptr;

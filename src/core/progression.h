@@ -8,6 +8,7 @@
 #include "core/character.h"
 #include "core/combat.h"
 #include "core/game_state.h"
+#include "core/passive.h"
 #include "core/player_controller.h"
 #include "core/weapon.h"
 
@@ -211,15 +212,24 @@ public:
                        const WeaponRegistry &weapons, std::uint64_t seed);
 
     // Non-empty when the character's initial weapon is unknown or not
-    // implemented; the run must not start.
+    // implemented, or its passive_id is unknown; the run must not start.
     const std::string &init_error() const { return init_error_; }
 
     // Orbs from kills (Playing only), then pickups. Returns levels gained.
+    // The XP actually collected from orbs (after the multiplier) also feeds
+    // the passive.
     int ingest_and_collect(GameState state,
                            const std::vector<KillEvent> &kills, Vec2 player);
     // Legitimate progression grant (visual test / tools): XP skips the orbs
-    // but still passes the character multiplier. Playing only.
+    // but still passes the character multiplier. Playing only. Does NOT feed
+    // the passive: it is not collected food.
     int grant_xp(GameState state, double raw_xp);
+
+    // Healing requested by passive procs queued since the last call, for the
+    // given current max HP; clears the queue. 0 unless state is Playing (a
+    // frozen state neither applies nor discards queued procs).
+    double take_passive_heal(GameState state, double max_hp);
+    const PassiveRuntime &passive() const { return passive_; }
 
     bool needs_upgrade() const { return levels_.pending_levels() > 0; }
     // Starts the next offer for a pending level. Pending levels whose pool is
@@ -248,6 +258,7 @@ private:
     LevelUpSystem levels_;
     WeaponInventory inventory_;
     UpgradeCardSystem cards_;
+    PassiveRuntime passive_;
     std::string init_error_;
 };
 

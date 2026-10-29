@@ -1,0 +1,7 @@
+# Planned P2-02e: health accounting before another balance experiment
+
+No gameplay changes. File edits only src/core/combat.h/.cpp and tests/unit/combat_test.cpp or new tests/unit/health_metrics_test.cpp. No shell/orchestration/global config. This is stageA; stageB exports bounded simulation timelines. Do not call the overall balance task done after this stage.
+
+Expose a per-CombatWorld read-only HealthMetrics value: actual HP damage taken, actual healing from heal(), actual HP gained from maxHP upgrades in update_player_stats(), and successful contact-hit count/damage split by the three EnemyKind values. Count only actual applied HP changes (overkill damage capped to remainingHP, fullHP healing0, armor applied first). Ignore failed/rejected calls. Reset in a new world. Never consume RNG, change frame order, cooldowns or any stats. Keep arithmetic finite/bounded. Suggested API health_metrics() const.
+
+Meaningful tests distinguish raw damage from actual armored/overkill HP loss, iframes from actual hits, capped/fullHP/invalid/frozen healing, upgrade HP gain, rejected stat changes and fresh-world reset. Existing137 tests must remain valid. Host will build/native2cold and re-run real JSON. Require identical current passive baseline hashes: seed1kite c3dcdf2b24529355 at613.466678936s, seed2kite793dd79d12a2825c at560.300011206s, seed2stationary184747d172b838a9 at25.133333836s. Metrics must not affect gameplay. Use Haiku with one small bounded budget, not a broad refactor.

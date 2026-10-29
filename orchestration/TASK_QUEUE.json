@@ -72,17 +72,18 @@
         "Demonstrate normal-character 1200-second victory without fixture overrides; retain stationary/death baseline",
         "Record policy limitations, no false claim about human play quality"
       ],
-      "checkpoint": "Chaser/Charger/Brute implemented and baseline117 locally verified. Defensive upgrade and reduced-wave-pressure experiments failed acceptance and were removed; no normal1200s win. Host tools work; only inner sandbox had SCons/AppData/child-network restrictions. New host developer-job protocol avoids these restrictions without changing sandbox. Next measure damage/upgrade timeline and charger-aware steering; do not repeat rejected experiments."
+      "checkpoint": "Three rejected bot/wave experiments archived and removed; stop blind policy tuning. After user-named passive, actual JSON613.466678936/560.300011206 seconds Lost, stationary25.133333836 unchanged. Next damage/healing/XP/card timeline instrumentation, then evidence-based balance; no1200s win."
     },
     {
       "id": "P3-01",
       "title": "Character passives and additional original or licensed characters",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "acceptance": [
         "Configured passive changes gameplay and has tests",
         "New characters work without combat refactor",
         "External OC author, source and permission recorded"
-      ]
+      ],
+      "checkpoint": "吃白饭 core+native UI implemented and locally verified137 tests/native2cold/screenshots.100 actual collected XP ->3% current maxHP; remainder/fullHP consumption/death priority/reset covered. Exact-head WindowsCI pending; additional characters still TODO. Normal1200s balance remains P2 open."
     },
     {
       "id": "P4-01",

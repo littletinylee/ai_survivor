@@ -455,6 +455,15 @@ ProgressionSession::ProgressionSession(const CharacterDefinition &character,
         !inventory_.add(w->id, 1, w->max_level)) {
         init_error_ = "initial weapon unavailable: " + character.initial_weapon_id;
     }
+    const PassiveRegistry passives = PassiveRegistry::make_default();
+    const PassiveSpec *passive = passives.find(character.passive_id);
+    if (passive == nullptr) {
+        if (init_error_.empty()) {
+            init_error_ = "unknown passive: " + character.passive_id;
+        }
+    } else {
+        passive_ = PassiveRuntime(*passive);
+    }
 }
 
 int ProgressionSession::ingest_and_collect(GameState state,
@@ -466,7 +475,18 @@ int ProgressionSession::ingest_and_collect(GameState state,
     orbs_.spawn_from_kills(state, kills);
     const double xp =
         orbs_.collect(state, player, stats_.pickup_radius, stats_.xp_multiplier);
-    return xp > 0.0 ? std::max(0, levels_.add_xp(xp)) : 0;
+    if (!(xp > 0.0)) {
+        return 0;
+    }
+    passive_.feed(xp);
+    return std::max(0, levels_.add_xp(xp));
+}
+
+double ProgressionSession::take_passive_heal(GameState state, double max_hp) {
+    if (state != GameState::kPlaying) {
+        return 0.0;
+    }
+    return passive_.take_heal(max_hp);
 }
 
 int ProgressionSession::grant_xp(GameState state, double raw_xp) {

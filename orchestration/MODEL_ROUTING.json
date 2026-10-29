@@ -23,7 +23,7 @@
     "codex": "gpt-6.1-sol (CLI verified)",
     "claude": "claude-haiku-5-5 (CLI verified); sonnet/opus mappings configured, not CLI probed",
     "desktop_chat_migration": false,
-    "status": "DEGRADED_TRANSPORT",
+    "status": "READY_AFTER_HOST_PROTOCOL_VERIFICATION",
     "base_url": "https://asiasouth.up.railway.app/v1",
     "launchers": [
       "tools/claude-task.ps1 -Provider auto",
@@ -37,7 +37,8 @@
       "auth_or_budget_rejection": false,
       "controlled_resume": 1,
       "reasoning_effort": "medium",
-      "automatic_request_stream_retries": 0
+      "automatic_request_stream_retries": 0,
+      "host_protocol_result": "2cycles max_cycles success, actual Claude/build/test/simulations then controller review; no new transport/auth/budget errors"
     }
   },
   "art_production": {
