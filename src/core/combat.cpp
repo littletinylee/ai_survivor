@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace ai_survivors {
 
@@ -81,11 +82,19 @@ bool EnemyManager::spawn(const EnemySpawn &spec, double radius) {
     if (enemies_.size() >= kMaxEnemies || !finite_vec(spec.position)) {
         return false;
     }
+    const int kind = static_cast<int>(spec.kind);
+    if (kind < static_cast<int>(EnemyKind::kChaser) ||
+        kind > static_cast<int>(EnemyKind::kBrute) ||
+        !std::isfinite(spec.radius) || spec.radius < 0.0 ||
+        spec.radius > kMaxSpawnRadius) {
+        return false;
+    }
     Enemy e;
     e.id = next_id_++;
     e.position = spec.position;
+    e.kind = spec.kind;
     e.hp = e.max_hp = sanitize(spec.hp, 1.0, 1e9, 20.0);
-    e.radius = radius;
+    e.radius = spec.radius > 0.0 ? spec.radius : radius;
     e.speed = sanitize(spec.speed, 0.0, 2000.0, 70.0);
     e.contact_damage = sanitize(spec.contact_damage, 0.0, 1e6, 8.0);
     e.xp_value = sanitize(spec.xp_value, 0.0, 1e6, 0.0);
@@ -93,8 +102,98 @@ bool EnemyManager::spawn(const EnemySpawn &spec, double radius) {
     return true;
 }
 
+namespace {
+
+constexpr double kPhaseEpsilon = 1e-12;
+constexpr int kMaxChargerTransitions = 16;
+
+void begin_windup(Enemy &e, Vec2 target) {
+    double dx = target.x - e.position.x;
+    double dy = target.y - e.position.y;
+    const double d = std::sqrt(dx * dx + dy * dy);
+    if (d > 1e-9 && std::isfinite(d)) {
+        dx /= d;
+        dy /= d;
+    } else {
+        dx = 1.0;
+        dy = 0.0;
+    }
+    e.aim = Vec2{dx, dy};
+    e.phase = ChargerPhase::kWindup;
+    e.phase_remaining = ChargerTuning::kWindupSeconds;
+}
+
+void step_charger(Enemy &e, double dt, Vec2 target, double hw, double hh) {
+    if (!std::isfinite(dt) || dt <= 0.0) {
+        return;
+    }
+    double t = std::min(dt, ChargerTuning::kMaxStepDelta);
+    for (int i = 0; i < kMaxChargerTransitions && t > 0.0; ++i) {
+        switch (e.phase) {
+        case ChargerPhase::kApproach: {
+            const double dx = target.x - e.position.x;
+            const double dy = target.y - e.position.y;
+            const double d = std::sqrt(dx * dx + dy * dy);
+            if (e.rearm_remaining <= kPhaseEpsilon &&
+                d <= ChargerTuning::kTriggerRange) {
+                begin_windup(e, target);
+                break;
+            }
+            const double seg = e.rearm_remaining > kPhaseEpsilon
+                                   ? std::min(t, e.rearm_remaining)
+                                   : t;
+            if (d > 1e-9) {
+                const double move = std::min(e.speed * seg, d);
+                e.position.x += dx / d * move;
+                e.position.y += dy / d * move;
+            }
+            e.rearm_remaining = std::max(0.0, e.rearm_remaining - seg);
+            t -= seg;
+            break;
+        }
+        case ChargerPhase::kWindup:
+        case ChargerPhase::kDash:
+        case ChargerPhase::kRecovery: {
+            const double seg = std::min(t, e.phase_remaining);
+            if (e.phase == ChargerPhase::kDash) {
+                const double move = e.speed * ChargerTuning::kDashSpeedMultiplier * seg;
+                e.position.x = std::min(hw, std::max(-hw, e.position.x + e.aim.x * move));
+                e.position.y = std::min(hh, std::max(-hh, e.position.y + e.aim.y * move));
+            }
+            e.phase_remaining -= seg;
+            t -= seg;
+            if (e.phase_remaining <= kPhaseEpsilon) {
+                e.phase_remaining = 0.0;
+                if (e.phase == ChargerPhase::kWindup) {
+                    e.phase = ChargerPhase::kDash;
+                    e.phase_remaining = ChargerTuning::kDashSeconds;
+                } else if (e.phase == ChargerPhase::kDash) {
+                    e.phase = ChargerPhase::kRecovery;
+                    e.phase_remaining = ChargerTuning::kRecoverySeconds;
+                } else {
+                    e.phase = ChargerPhase::kApproach;
+                    e.rearm_remaining = ChargerTuning::kRearmSeconds;
+                }
+            }
+            break;
+        }
+        }
+    }
+}
+
+} // namespace
+
 void EnemyManager::step(double dt, Vec2 target) {
+    const double inf = std::numeric_limits<double>::infinity();
+    step(dt, target, inf, inf);
+}
+
+void EnemyManager::step(double dt, Vec2 target, double hw, double hh) {
     for (Enemy &e : enemies_) {
+        if (e.kind == EnemyKind::kCharger) {
+            step_charger(e, dt, target, hw, hh);
+            continue;
+        }
         const double dx = target.x - e.position.x;
         const double dy = target.y - e.position.y;
         const double d = std::sqrt(dx * dx + dy * dy);
@@ -419,6 +518,26 @@ void WaveDirector::step(double dt, double elapsed, EnemyManager &enemies,
         spec.speed = 70.0 + std::min(50.0, elapsed * 0.04);
         spec.contact_damage = 8.0 + elapsed * 0.005;
         spec.xp_value = 5.0;
+        // The kind draw only exists once chargers are unlocked, so the RNG
+        // stream (and every early wave) is identical to the chaser-only game.
+        if (elapsed >= kChargerIntroSeconds) {
+            const double roll = rng.next_unit();
+            if (elapsed >= kBruteIntroSeconds && roll < 0.15) {
+                spec.kind = EnemyKind::kBrute;
+                spec.radius = 28.0;
+                spec.speed *= 0.55;
+                spec.hp *= 3.0;
+                spec.contact_damage *= 1.6;
+                spec.xp_value *= 2.4;
+            } else if (roll < (elapsed >= kBruteIntroSeconds ? 0.35 : 0.20)) {
+                spec.kind = EnemyKind::kCharger;
+                spec.radius = 14.0;
+                spec.speed *= 1.1;
+                spec.hp *= 0.75;
+                spec.contact_damage *= 1.3;
+                spec.xp_value *= 1.25;
+            }
+        }
         if (!enemies.spawn(spec, config_.enemy_radius)) {
             break;
         }
@@ -522,7 +641,7 @@ void CombatWorld::substep(double h, Vec2 player, GameStateManager &states,
                           bool &died) {
     combat_time_ += h;
     waves_.step(h, combat_time_, enemies_, rng_);
-    enemies_.step(h, player);
+    enemies_.step(h, player, config_.arena_half_width, config_.arena_half_height);
     AreaSink area;
     area.zones = &zones_;
     weapon_.step_all(h, player, enemies_, projectiles_, rng_, &area);

@@ -3,7 +3,7 @@
   "phase": 2,
   "status": "IN_PROGRESS",
   "date": "2026-10-29",
-  "branch": "codex/character-art",
+  "branch": "codex/enemy-variety",
   "remote": "git@github.com:littletinylee/ai_survivor.git",
   "completed": [
     "environment_probe",
@@ -15,13 +15,13 @@
     "deepseek_availability_probe"
   ],
   "unverified": [
-    "complete_run_balance",
-    "enemy_variety",
-    "ART-01a_Windows_CI",
-    "walk_animation"
+    "normal_character_1200_second_balance",
+    "P2-02b_Windows_CI",
+    "walk_animation",
+    "host_job_protocol_end_to_end"
   ],
-  "next": "ART-01a PR and WindowsCI; then telegraphed charger/brute enemies, balance and individually aligned walk frames",
-  "reason": "User confirms reference AI-generated; native configured idle/portrait rendered and reviewed, draft walk atlases rejected by layout QA",
-  "tests": "107 GoogleTest + native texture integration + 2 cold starts PASS; missing-art fixture exits1; select/battle screenshots reviewed; normal seed1 unchanged621sLost",
+  "next": "Review and submit enemy variety plus host job protocol; then diagnose damage/upgrade timeline and charger-aware steering before another balance change",
+  "reason": "Host Windows toolchain works. Inner controller sandbox access limits are not global toolchain failures. Defensive card and slower wave experiments failed measured acceptance and were removed. Two Subrouter transport failures saved; no identical restart.",
+  "tests": "Host rebuild117/117 GoogleTest; native Headless;2 fresh cold starts PASS. Actual JSON seeds1/2 kite Lost615.683345647/623.033345794; seed2 stationary Lost25.133333836. All hashes match restored baseline. Runner22 cases21PASS1Windows symlink privilege skip; provider12 checks plus mock handoffs PASS.",
   "workspace": "E:/AI Survior/ai_survivor"
 }

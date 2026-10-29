@@ -23,14 +23,22 @@
     "codex": "gpt-6.1-sol (CLI verified)",
     "claude": "claude-haiku-5-5 (CLI verified); sonnet/opus mappings configured, not CLI probed",
     "desktop_chat_migration": false,
-    "status": "READY",
+    "status": "DEGRADED_TRANSPORT",
     "base_url": "https://asiasouth.up.railway.app/v1",
     "launchers": [
       "tools/claude-task.ps1 -Provider auto",
       "tools/codex-task.ps1 -Provider auto",
       "tools/codex-subrouter.ps1"
     ],
-    "secret_location": "orchestration/local/subrouter.json (gitignored)"
+    "secret_location": "orchestration/local/subrouter.json (gitignored)",
+    "transport_recovery": {
+      "observed_failures": 2,
+      "failure_class": "connection reset by peer; second upstream HTTP524",
+      "auth_or_budget_rejection": false,
+      "controlled_resume": 1,
+      "reasoning_effort": "medium",
+      "automatic_request_stream_retries": 0
+    }
   },
   "art_production": {
     "provider": "ChatGPT built-in image_gen",
@@ -38,5 +46,7 @@
     "reference": "Blue-haired whale-tail maid girl three-view supplied by user; fish-shaped graphics are temporary placeholders",
     "code_implementation": "Claude Haiku/Sonnet",
     "status": "ChatGPT idle PNG integrated and locally verified; walk atlas drafts not accepted; first-frame source/prompt recorded"
-  }
+  },
+  "controller_provider": "subrouter",
+  "controller_launch": "python tools/project_runner.py run --provider subrouter --simulations --max-cycles 6 --cycle-timeout 900 --total-hours 4"
 }

@@ -1,0 +1,11 @@
+# P2-02c: bounded late-game spawn pressure
+
+STATUS: REJECTED 2026-10-29. Host build119/unit/native/2cold passed, but actual seeds1/2 kite Lost598.816678643 /732.200014644. Seed1 regressed versus615.683345647; the acceptance requires both improve. Candidate code/tests removed; patch and reports kept ignored locally. Do not repeat this experiment. Fewer enemies also reduced XP/levels (seed1 level58), so raw spawn-pressure reduction alone is not a demonstrated solution. Next investigate damage/upgrade timeline and charger-aware steering before further tuning.
+
+Codex approved experiment. Read AGENTS.md and relevant wave/enemy tests. File edits only; do not run shell or edit orchestration, user configuration, character JSON or bot policy. Change only src/core/combat.cpp and tests/unit/enemy_variety_test.cpp.
+
+Current real JSON kite seeds 1/2 die at615.683345647 /623.033345794 seconds. A defensive card-priority experiment made this worse (485/500 seconds) and has been removed. The existing wave cadence compounds count growth every120s with interval reduction to0.3s, reaching about36.7 spawns/s at1200s. Try a gentler, still increasing difficulty curve: keep initial interval1.2 and decay0.00075 per elapsed second, set minimum interval0.6; grow count by one every180s rather than120s. Keep enemy HP/speed/damage/XP, charger/brute introduction/mix, caps, RNG and character stats unchanged. Do not change victory time1200 or any terminal state.
+
+Add a meaningful unit regression comparing sustained spawn counts for early/mid/late windows, with managers cleared to avoid entity cap masking throughput. Assert pressure increases, late pressure stays bounded by intended spawn envelope, deterministic repeatability and enemy cap hold. Existing enemy-behaviour tests remain valid. Avoid tests which merely mirror a constant or assert a victory not yet observed.
+
+Codex will build and run all tests, native Headless/cold starts and actual seed1/2 kite plus seed2 stationary. Accept only if both kite survival times improve and stationary baseline25.133333836 stays unchanged, with report invariants intact. 1200s normal victory remains unverified until real reports show it. Report files changed and assumptions. Keep implementation small.

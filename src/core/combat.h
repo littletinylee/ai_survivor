@@ -55,6 +55,32 @@ struct CombatConfig {
     bool waves_enabled = true;
 };
 
+enum class EnemyKind {
+    kChaser = 0, // walks straight at the player
+    kCharger,    // telegraphed dash, see ChargerTuning
+    kBrute,      // chaser behaviour; bulky body, set by the spawn stats
+};
+
+enum class ChargerPhase {
+    kApproach = 0,
+    kWindup,   // stationary, aim locked at its start
+    kDash,     // straight along the locked aim, never homes
+    kRecovery, // stationary
+};
+
+// Charger timings (seconds) and ranges. Only used by EnemyKind::kCharger.
+struct ChargerTuning {
+    static constexpr double kTriggerRange = 220.0;
+    static constexpr double kWindupSeconds = 0.7;
+    static constexpr double kDashSeconds = 0.3;
+    static constexpr double kDashSpeedMultiplier = 3.0;
+    static constexpr double kRecoverySeconds = 0.8;
+    // Minimum approach time after a recovery before the next windup may start.
+    static constexpr double kRearmSeconds = 1.0;
+    // Largest delta one charger consumes per step call (hostile-dt guard).
+    static constexpr double kMaxStepDelta = 0.25;
+};
+
 struct Enemy {
     std::uint32_t id = 0;
     Vec2 position;
@@ -65,6 +91,12 @@ struct Enemy {
     double contact_damage = 8.0;
     double xp_value = 5.0;
     double contact_cooldown = 0.0; // seconds until this enemy may hit again
+    EnemyKind kind = EnemyKind::kChaser;
+    // Charger state, read-only for rendering. Other kinds stay in kApproach.
+    ChargerPhase phase = ChargerPhase::kApproach;
+    double phase_remaining = 0.0; // seconds left in windup/dash/recovery
+    double rearm_remaining = 0.0; // seconds before the next windup may begin
+    Vec2 aim{1.0, 0.0};           // unit vector locked at windup start
 };
 
 struct Projectile {
@@ -135,6 +167,10 @@ struct EnemySpawn {
     double speed = 70.0;
     double contact_damage = 8.0;
     double xp_value = 5.0;
+    EnemyKind kind = EnemyKind::kChaser;
+    // Body radius override; 0 means "use the radius passed to spawn()"
+    // (CombatConfig::enemy_radius for CombatWorld). Must be 0 or in (0, 100].
+    double radius = 0.0;
 };
 
 class DamageSystem {
@@ -157,9 +193,18 @@ class EnemyManager {
 public:
     static constexpr std::size_t kMaxEnemies = 256;
 
-    // Returns false (and spawns nothing) when at capacity.
+    static constexpr double kMaxSpawnRadius = 100.0;
+
+    // Returns false (and spawns nothing) at capacity, for a non-finite
+    // position, an unknown kind, or a non-finite/negative/oversized
+    // spec.radius. radius is the default body radius when spec.radius is 0.
     bool spawn(const EnemySpawn &spec, double radius);
+    // Chasers/brutes walk straight at target (unbounded). Chargers advance
+    // their telegraph state machine.
     void step(double dt, Vec2 target);
+    // Same, but charger dashes are clamped to the arena rectangle.
+    void step(double dt, Vec2 target, double arena_half_width,
+              double arena_half_height);
     // Index of the nearest live enemy within max_range of from, or -1.
     int nearest(Vec2 from, double max_range) const;
     void clear();
@@ -247,6 +292,10 @@ private:
     CombatConfig config_;
     double accumulator_ = 0.0;
 };
+
+// Wave introduction times (combat seconds); before them every spawn is a chaser.
+constexpr double kChargerIntroSeconds = 45.0;
+constexpr double kBruteIntroSeconds = 90.0;
 
 // Orchestrates one run's combat. It never owns a victory timer: GameTimer stays
 // the only 1200 s clock. The combat clock below only schedules waves and is fed
