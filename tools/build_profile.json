@@ -14,6 +14,8 @@
     "DirAccess",
     "FileAccess",
     "ScrollContainer",
-    "VBoxContainer"
+    "VBoxContainer",
+    "TextServer",
+    "Texture2D"
   ]
 }

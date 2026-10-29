@@ -21,3 +21,7 @@ Phase1-01本机已验收（32测试+Headless+4截图），云端WindowsCI待确�
 P1-02已由Sonnet实现并经Codex52单测/缓存目录Headless/战斗截图验证。关键回归：全新最小项目首次加载扩展在Windows复现访问冲突(-1073741819)，再次导入0；无扩展基线首次0。稳定SDK对照不解决，已恢复原SDK锁。优先修复冷启动，不合并main；GitHub连接器现在可用了，将创建草稿PR。下一任务由Sonnet分析首次动态扩展装载/卸载路径，禁止忽略第一次崩溃或提交.godot缓存绕过。
 
 冷启动已在本地缓解：官方issue111048明确是EditorHelp文档后台回调与过早退出竞态，使用导入参数--frame-delay1000保留所有失败检查。新增冷启动回归，每次唯一新目录无缓存，3个目录首次导入+游戏集成全部0。52单测通过。SDK/引擎保持原锁。草稿PR#1已创建并附到聊天；待WindowsCI确认后方可合并。
+
+Windows推送与PR CI均在0d58b1f完成success。PR#1已验收并合并main，merge=dbead02acaff65c2e860fa6c313f5a8fe3efc63f，未绕过检查。新分支feat/experience-upgrades开始P1-03；P0-01/P1-01/P1-02已DONE。现有玩法还没有经验和卡片，继续纯C++实现。
+
+P1-03经验/三选一/连续升级已实现并本地80单测、Headless(含真实经验拾取升级)及2冷启动通过，截图已看。卡片应用使用generation+ID拒绝重复/旧回调，泡泡弹升级有效；六槽库存/容量过滤有测试，但真实攻击仍只泡泡弹，无效未实现武器不会出现。此轮Sonnet编写，Codex补TextServer/Texture2D绑定依赖并修数值边界。下一步WindowsCI/PR合并，再完整20分钟战斗+经验+卡片模拟（不能拿仅计时模拟替代）。

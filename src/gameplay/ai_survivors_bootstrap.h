@@ -8,18 +8,22 @@
 #include <godot_cpp/classes/node2d.hpp>
 
 #include <cstdint>
+#include <vector>
+
+#include <godot_cpp/classes/button.hpp>
 
 #include "core/character.h"
 #include "core/combat.h"
 #include "core/game_state.h"
 #include "core/game_timer.h"
 #include "core/player_controller.h"
+#include "core/progression.h"
 
 namespace ai_survivors {
 
-// Phase 1-02 scene layer: main menu -> character selection -> battle arena
-// with movement and automatic combat (CombatWorld). There is no XP or cards
-// yet; kill events carry an XP payload that nothing consumes.
+// Phase 1-03 scene layer: main menu -> character selection -> battle arena
+// with movement, automatic combat (CombatWorld), XP orbs, levels and native
+// upgrade cards (ProgressionSession). Rules live in core/progression.*.
 //
 // Characters come from the pure C++ CharacterRegistry, loaded from the JSON
 // files in res://data/characters. Invalid data is reported loudly and never
@@ -49,9 +53,21 @@ private:
     void show_screen(Screen screen);
     void start_battle(const std::string &character_id);
     void refresh_battle_ui();
-    // Advances movement-less combat and the survival clock in fixed steps
-    // using the same order as _physics_process (combat, then timer if Playing).
+    // One Playing frame after movement: combat -> timer (only if still
+    // Playing) -> XP pickup / upgrade transition (only if still Playing).
+    // Does nothing in any other state.
+    void advance_frame(double delta);
+    // Advances movement-less frames in fixed steps via advance_frame.
     void simulate_battle(double seconds);
+
+    // Upgrade flow: Playing -> Upgrade stays until every queued level is
+    // resolved; empty pools resolve levels without a reward.
+    void begin_upgrade_flow();
+    void continue_upgrade_flow();
+    void show_offer();
+    void clear_card_buttons();
+    void apply_runtime_stats();
+    void on_card_pressed(const godot::String &card_id, int64_t generation);
 
     void on_start_pressed();
     void on_back_to_menu_pressed();
@@ -61,8 +77,12 @@ private:
 
     bool run_core_checks();
     bool run_native_checks();
+    bool run_progression_checks();
 
     // Run-local state; recreated for every battle.
+    WeaponRegistry weapon_registry_ = WeaponRegistry::make_default();
+    std::unique_ptr<ProgressionSession> progression_;
+    std::vector<godot::Button *> card_buttons_;
     GameStateManager states_;
     std::unique_ptr<GameTimer> timer_;
     PlayerController player_{kArenaHalfWidth, kArenaHalfHeight, kPlayerRadius,
@@ -90,6 +110,9 @@ private:
     godot::Control *pause_panel_ = nullptr;
     godot::Control *character_list_ = nullptr;
     godot::Control *start_button_ = nullptr;
+    godot::Control *upgrade_panel_ = nullptr;
+    godot::Label *upgrade_title_ = nullptr;
+    godot::Label *xp_label_ = nullptr;
     godot::Label *overlay_title_ = nullptr;
     godot::Control *resume_button_ = nullptr;
 };

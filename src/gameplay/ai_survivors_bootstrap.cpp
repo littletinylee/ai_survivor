@@ -13,6 +13,8 @@
 #include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/scroll_container.hpp>
+#include <godot_cpp/classes/text_server.hpp>
+#include <godot_cpp/variant/packed_vector2_array.hpp>
 #include <godot_cpp/classes/v_box_container.hpp>
 #include <godot_cpp/core/memory.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
@@ -242,6 +244,13 @@ void AISurvivorsBootstrap::build_ui() {
     make_label(battle_panel_, "WASD / 方向键移动    Esc 暂停", 16, 20, 650, 600,
                24, false);
 
+    xp_label_ = make_label(battle_panel_, "", 16, 330, 48, 400, 24, false);
+
+    upgrade_panel_ = make_panel(battle_panel_, "UpgradePanel");
+    upgrade_title_ = make_label(upgrade_panel_, "升级！选择一项强化", 40, 0, 110,
+                                1100, 60, true);
+    upgrade_panel_->set_visible(false);
+
     pause_panel_ = make_panel(battle_panel_, "PausePanel");
     overlay_title_ = make_label(pause_panel_, "已暂停", 48, 0, 190, 1100, 70, true);
     Button *resume = make_button(pause_panel_, "继续", 26, 400, 280, 300, 56);
@@ -286,6 +295,8 @@ void AISurvivorsBootstrap::show_screen(Screen screen) {
                          (st == GameState::kPaused || st == GameState::kWon ||
                           st == GameState::kLost);
     pause_panel_->set_visible(overlay);
+    upgrade_panel_->set_visible(screen == Screen::kBattle &&
+                                st == GameState::kUpgrade);
     if (overlay) {
         overlay_title_->set_text(String::utf8(st == GameState::kLost  ? "失败"
                                               : st == GameState::kWon ? "胜利"
@@ -301,13 +312,21 @@ void AISurvivorsBootstrap::start_battle(const std::string &character_id) {
         godot::UtilityFunctions::push_error("unknown character id");
         return;
     }
+    auto session = std::make_unique<ProgressionSession>(
+        *character, weapon_registry_, 0x51D00000ULL + run_counter_);
+    if (!session->init_error().empty()) {
+        godot::UtilityFunctions::push_error(to_godot(session->init_error()));
+        return;
+    }
+    clear_card_buttons();
+    progression_ = std::move(session);
     active_character_ = character;
     // Run-local state is recreated for each battle.
     states_ = GameStateManager();
     timer_ = std::make_unique<GameTimer>(states_);
     states_.start_run();
     player_.reset();
-    player_.set_move_speed(character->move_speed);
+    player_.set_move_speed(progression_->stats().move_speed);
     // Fixed base seed plus a per-session run counter: reproducible, yet
     // restarts are not identical copies.
     world_ = std::make_unique<CombatWorld>(CombatStats::from_character(*character),
@@ -330,18 +349,114 @@ void AISurvivorsBootstrap::refresh_battle_ui() {
                   std::ceil(world_->hp()), world_->max_hp(), world_->kill_count(),
                   elapsed / 60, elapsed % 60);
     battle_label_->set_text(to_godot(active_character_->name) + String::utf8(buf));
+    if (progression_ && xp_label_ != nullptr) {
+        char xp[96];
+        std::snprintf(xp, sizeof(xp), "等级 %d   经验 %.0f / %.0f",
+                      progression_->levels().level(), progression_->levels().xp(),
+                      progression_->levels().next_threshold());
+        xp_label_->set_text(String::utf8(xp));
+    }
+}
+
+void AISurvivorsBootstrap::advance_frame(double delta) {
+    if (states_.state() != GameState::kPlaying || !world_ || !timer_ ||
+        !progression_) {
+        return;
+    }
+    // Death has priority over victory: combat runs before the single
+    // survival clock, which only advances if the run is still Playing.
+    world_->tick(states_, delta, player_.position());
+    if (states_.state() == GameState::kPlaying) {
+        timer_->advance(delta);
+    }
+    if (states_.state() == GameState::kPlaying) {
+        progression_->ingest_and_collect(states_.state(),
+                                         world_->take_kill_events(),
+                                         player_.position());
+        if (progression_->needs_upgrade()) {
+            begin_upgrade_flow();
+        }
+    }
 }
 
 void AISurvivorsBootstrap::simulate_battle(double seconds) {
     const double step = 1.0 / 60.0;
     for (double t = 0.0; t < seconds && states_.state() == GameState::kPlaying;
          t += step) {
-        world_->tick(states_, step, player_.position());
-        if (states_.state() == GameState::kPlaying) {
-            timer_->advance(step);
-        }
+        advance_frame(step);
     }
     show_screen(Screen::kBattle);
+    refresh_battle_ui();
+}
+
+void AISurvivorsBootstrap::begin_upgrade_flow() {
+    if (!progression_ || !states_.begin_upgrade()) {
+        return;
+    }
+    continue_upgrade_flow();
+}
+
+void AISurvivorsBootstrap::continue_upgrade_flow() {
+    clear_card_buttons();
+    if (progression_->advance_offer()) {
+        show_offer();
+    } else if (states_.state() == GameState::kUpgrade) {
+        states_.complete_upgrade();
+    }
+    show_screen(Screen::kBattle);
+}
+
+void AISurvivorsBootstrap::clear_card_buttons() {
+    for (Button *b : card_buttons_) {
+        b->queue_free();
+    }
+    card_buttons_.clear();
+}
+
+void AISurvivorsBootstrap::show_offer() {
+    const UpgradeOffer &offer = progression_->cards().current_offer();
+    char title[96];
+    std::snprintf(title, sizeof(title), "升级！选择一项强化（剩余 %d 次）",
+                  progression_->levels().pending_levels());
+    upgrade_title_->set_text(String::utf8(title));
+    for (std::size_t i = 0; i < offer.card_ids.size(); ++i) {
+        const CardDefinition *card = progression_->cards().find(offer.card_ids[i]);
+        if (card == nullptr) {
+            continue;
+        }
+        Button *button = make_button(
+            upgrade_panel_, to_godot(card->name) + "\n\n" + to_godot(card->description),
+            22, 120.0f + 290.0f * static_cast<float>(i), 200.0f, 270.0f, 240.0f);
+        button->set_autowrap_mode(godot::TextServer::AUTOWRAP_ARBITRARY);
+        button->connect("pressed",
+                        callable_mp(this, &AISurvivorsBootstrap::on_card_pressed)
+                            .bind(to_godot(card->id),
+                                  static_cast<int64_t>(offer.generation)));
+        card_buttons_.push_back(button);
+    }
+}
+
+void AISurvivorsBootstrap::apply_runtime_stats() {
+    if (!progression_ || !world_) {
+        return;
+    }
+    const PlayerRuntimeStats &s = progression_->stats();
+    world_->update_player_stats(s.combat(), progression_->weapon_damage_scale());
+    player_.set_move_speed(s.move_speed);
+}
+
+void AISurvivorsBootstrap::on_card_pressed(const String &card_id,
+                                           int64_t generation) {
+    if (!progression_ || states_.state() != GameState::kUpgrade) {
+        return;
+    }
+    // Stale / repeated / invalid callbacks are rejected without mutation.
+    if (progression_->choose(static_cast<std::uint64_t>(generation),
+                             to_std(card_id)) != ChooseResult::kApplied) {
+        return;
+    }
+    apply_runtime_stats();
+    continue_upgrade_flow();
     refresh_battle_ui();
 }
 
@@ -353,6 +468,8 @@ void AISurvivorsBootstrap::on_start_pressed() {
 }
 
 void AISurvivorsBootstrap::on_back_to_menu_pressed() {
+    clear_card_buttons();
+    progression_.reset();
     states_ = GameStateManager();
     timer_.reset();
     world_.reset();
@@ -406,12 +523,7 @@ void AISurvivorsBootstrap::_physics_process(double delta) {
         if (player_.step(states_.state(), delta, ix, iy) && ix != 0.0) {
             facing_ = ix > 0.0 ? 1.0 : -1.0;
         }
-        // Death has priority over victory: combat runs before the single
-        // survival clock, which only advances if the run is still Playing.
-        world_->tick(states_, delta, player_.position());
-        if (states_.state() == GameState::kPlaying) {
-            timer_->advance(delta);
-        }
+        advance_frame(delta);
         if (states_.state() != GameState::kPlaying) {
             show_screen(Screen::kBattle); // defeat / victory overlay
         }
@@ -432,6 +544,35 @@ void AISurvivorsBootstrap::_draw() {
     draw_rect(godot::Rect2(center - half, half * 2.0f),
               Color(0.35f, 0.65f, 0.85f, 1.0f), false, 3.0f);
 
+    if (progression_) {
+        // Bright green gems: distinct from cyan shots and red enemies.
+        for (const XpOrb &o : progression_->experience().orbs()) {
+            const Vector2 op =
+                center + Vector2(static_cast<float>(o.position.x),
+                                 static_cast<float>(o.position.y));
+            godot::PackedVector2Array gem;
+            gem.push_back(op + Vector2(0.0f, -9.0f));
+            gem.push_back(op + Vector2(7.0f, 0.0f));
+            gem.push_back(op + Vector2(0.0f, 9.0f));
+            gem.push_back(op + Vector2(-7.0f, 0.0f));
+            draw_colored_polygon(gem, Color(0.25f, 1.0f, 0.25f, 1.0f));
+            draw_polyline(gem, Color(0.85f, 1.0f, 0.75f, 1.0f), 1.5f);
+            draw_line(op + Vector2(-7.0f, 0.0f), op + Vector2(0.0f, -9.0f),
+                      Color(0.85f, 1.0f, 0.75f, 1.0f), 1.5f);
+        }
+        // XP bar under the HUD line.
+        const double need = progression_->levels().next_threshold();
+        const float frac = progression_->levels().at_max_level() || need <= 0.0
+                               ? 1.0f
+                               : static_cast<float>(std::min(
+                                     1.0, progression_->levels().xp() / need));
+        draw_rect(godot::Rect2(20.0f, 50.0f, 300.0f, 14.0f),
+                  Color(0.08f, 0.15f, 0.10f, 1.0f), true);
+        draw_rect(godot::Rect2(20.0f, 50.0f, 300.0f * frac, 14.0f),
+                  Color(0.25f, 1.0f, 0.25f, 1.0f), true);
+        draw_rect(godot::Rect2(20.0f, 50.0f, 300.0f, 14.0f),
+                  Color(0.70f, 1.0f, 0.70f, 1.0f), false, 2.0f);
+    }
     if (world_) {
         const Color coral(0.95f, 0.32f, 0.28f, 1.0f);
         const Color coral_edge(0.45f, 0.05f, 0.08f, 1.0f);
@@ -558,6 +699,105 @@ bool AISurvivorsBootstrap::run_native_checks() {
     return true;
 }
 
+bool AISurvivorsBootstrap::run_progression_checks() {
+    const auto fail = [this](const char *detail) {
+        godot::UtilityFunctions::print(
+            String("AI_SURVIVORS_INTEGRATION_FAILED: ") + String(detail));
+        on_back_to_menu_pressed();
+        return false;
+    };
+    const CharacterDefinition *fish = registry_.find("deepseek_big_fish");
+    if (fish == nullptr) {
+        return fail("progression check: character missing");
+    }
+    start_battle(fish->id);
+    if (!progression_ || !world_ || states_.state() != GameState::kPlaying ||
+        progression_->levels().level() != 1 ||
+        progression_->inventory().level("bubble_shot") != 1) {
+        return fail("progression did not start at level 1 with bubble_shot");
+    }
+    // A weak, harmless enemy inside weapon range; its orb lands inside the
+    // pickup radius of the player standing nearby, so a real pickup levels up.
+    player_.reset(Vec2{30.0, 0.0});
+    EnemySpawn weak;
+    weak.position = Vec2{100.0, 0.0};
+    weak.hp = 1.0;
+    weak.speed = 0.0;
+    weak.contact_damage = 0.0;
+    weak.xp_value = 10.0;
+    if (!world_->spawn_enemy(weak)) {
+        return fail("could not spawn progression test enemy");
+    }
+    for (int i = 0; i < 600 && states_.state() == GameState::kPlaying; ++i) {
+        advance_frame(1.0 / 60.0);
+    }
+    if (states_.state() != GameState::kUpgrade ||
+        progression_->levels().level() < 2 ||
+        !progression_->cards().has_active_offer()) {
+        return fail("real XP pickup did not open the upgrade choice");
+    }
+    const double frozen_time = timer_->elapsed_seconds();
+    const double frozen_combat = world_->combat_time();
+    advance_frame(1.0);
+    if (timer_->elapsed_seconds() != frozen_time ||
+        world_->combat_time() != frozen_combat) {
+        return fail("world or survival time advanced during upgrade");
+    }
+    const UpgradeOffer offer = progression_->cards().current_offer();
+    const PlayerRuntimeStats before = progression_->stats();
+    const int pending = progression_->levels().pending_levels();
+    on_card_pressed(to_godot(offer.card_ids[0]),
+                    static_cast<int64_t>(offer.generation) + 1);
+    if (states_.state() != GameState::kUpgrade ||
+        progression_->levels().pending_levels() != pending) {
+        return fail("stale card callback mutated state");
+    }
+    on_card_pressed(to_godot(offer.card_ids[0]),
+                    static_cast<int64_t>(offer.generation));
+    const PlayerRuntimeStats &after = progression_->stats();
+    const bool changed =
+        after.max_hp != before.max_hp || after.armor != before.armor ||
+        after.damage_multiplier != before.damage_multiplier ||
+        after.attack_speed_multiplier != before.attack_speed_multiplier ||
+        after.move_speed != before.move_speed ||
+        after.crit_chance != before.crit_chance ||
+        after.pickup_radius != before.pickup_radius ||
+        progression_->inventory().level("bubble_shot") > 1;
+    if (!changed || progression_->levels().pending_levels() != pending - 1) {
+        return fail("valid card did not change stats or consume a level");
+    }
+    if (world_->max_hp() != after.max_hp || world_->stats().armor != after.armor ||
+        world_->stats().damage_multiplier != after.damage_multiplier ||
+        player_.move_speed() != after.move_speed) {
+        return fail("card was not applied to world/player");
+    }
+    if (pending - 1 > 0 && states_.state() != GameState::kUpgrade) {
+        return fail("queued levels did not keep the Upgrade state");
+    }
+    for (int guard = 0; states_.state() == GameState::kUpgrade; ++guard) {
+        if (guard > 1000 || !progression_->cards().has_active_offer()) {
+            return fail("upgrade flow did not terminate");
+        }
+        const UpgradeOffer next = progression_->cards().current_offer();
+        on_card_pressed(to_godot(next.card_ids[0]),
+                        static_cast<int64_t>(next.generation));
+    }
+    advance_frame(1.0 / 60.0);
+    if (timer_->elapsed_seconds() <= frozen_time) {
+        return fail("survival time did not resume after upgrade");
+    }
+    start_battle(fish->id); // restart clears orbs, levels, cards, inventory
+    const bool clean = progression_ && progression_->levels().level() == 1 &&
+                       progression_->experience().orbs().empty() &&
+                       progression_->inventory().level("bubble_shot") == 1 &&
+                       progression_->cards().rank("attr_armor") == 0;
+    on_back_to_menu_pressed();
+    if (!clean) {
+        return fail("restart did not clear progression");
+    }
+    return true;
+}
+
 bool AISurvivorsBootstrap::run_core_checks() {
     const auto fail = [](const char *detail) {
         godot::UtilityFunctions::print(String("AI_SURVIVORS_INTEGRATION_FAILED: ") +
@@ -669,6 +909,7 @@ void AISurvivorsBootstrap::_ready() {
     bool visual_battle = false;
     bool visual_select = false;
     bool visual_pause = false;
+    bool visual_upgrade = false;
     const PackedStringArray args =
         OS::get_singleton()->get_cmdline_user_args();
     for (int64_t i = 0; i < args.size(); ++i) {
@@ -678,6 +919,9 @@ void AISurvivorsBootstrap::_ready() {
             visual_battle = true;
         } else if (args[i] == "--visual-select") {
             visual_select = true;
+        } else if (args[i] == "--visual-upgrade") {
+            visual_battle = true;
+            visual_upgrade = true;
         } else if (args[i] == "--visual-pause") {
             visual_battle = true;
             visual_pause = true;
@@ -691,6 +935,14 @@ void AISurvivorsBootstrap::_ready() {
             // Deterministic warm-up so the screenshot shows a populated arena.
             if (world_) simulate_battle(1.0);
             if (visual_pause) { states_.pause(); show_screen(Screen::kBattle); }
+            if (visual_upgrade && progression_ &&
+                states_.state() == GameState::kPlaying) {
+                // Screenshot only: a legitimate XP grant through the normal
+                // level/offer pipeline; normal mode has no such shortcut.
+                progression_->grant_xp(GameState::kPlaying, 25.0);
+                if (progression_->needs_upgrade()) begin_upgrade_flow();
+                refresh_battle_ui();
+            }
         } else if (visual_select && load_error_.empty()) {
             on_start_pressed();
         }
@@ -707,6 +959,10 @@ void AISurvivorsBootstrap::_ready() {
         return;
     }
     if (!run_native_checks()) {
+        get_tree()->quit(1);
+        return;
+    }
+    if (!run_progression_checks()) {
         get_tree()->quit(1);
         return;
     }
