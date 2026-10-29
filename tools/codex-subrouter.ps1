@@ -25,6 +25,7 @@ try {
         -c 'model_providers.subrouter.wire_api=responses' `
         -c 'model_providers.subrouter.request_max_retries=0' `
         -c 'model_providers.subrouter.stream_max_retries=0' `
+        -c 'model_reasoning_effort="medium"' `
         -m $Model -
     $exit = $LASTEXITCODE
 } finally {

@@ -17,11 +17,10 @@
   "unverified": [
     "normal_character_1200_second_balance",
     "P2-02b_Windows_CI",
-    "walk_animation",
-    "Tripo_export_access"
+    "walk_animation"
   ],
-  "next": "Subrouter Codex controller: review current enemy variety and improve reproducible normal-character1200s balance; preserve all remaining phases",
-  "reason": "User explicitly requested controller run through cached Subrouter; direct provider runner option verified, bounded hidden batch requested",
+  "next": "Resume saved survival-policy task through Subrouter; Tripo canceled by user, continue2D project",
+  "reason": "First relay run ended on upstream TCP reset, worktree baseline intact and no orphan writers; controlled resume once after checkpoint",
   "tests": "117 GoogleTest + native enemy/texture integration +2 cold starts PASS; enemy screenshot reviewed;13 runner tests and offline routing PASS",
   "workspace": "E:/AI Survior/ai_survivor"
 }

@@ -45,3 +45,5 @@ ART-01a静态角色本地接入通过：107测试+原生贴图+2冷启动；选�
 PR#6已在598251c双WindowsCI通过后合并main，merge6c6250702503debd4f851f8faf68b037bada7faa。用户授权试Tripo生产角色，现IAB tab1工作区上传按钮弹登录窗，需要用户本人登录；已保存tripo-login.jpg并保留页面，未上传/未生成/未购买。Tripo默认可见性公开，登录后先核对私密选项、账户额度和导出，不盲点付费。代码独立继续P2-02b冲锋/重装敌人。
 
 P2-02b本地117测试+Headless+2冷启动通过，截图已审，正常616/623秒Lost。用户要求我用缓存Subrouter继续：已补runner --provider subrouter（13离线测试PASS），计划启动隐藏6周期/每周期900秒/共4小时的独立总控。启动后本聊天仅只读，不并发改树。CONTINUE_TASK已完整保存上下文/全部Phase0–5目标与当前优先级。Tripo已登录，200额度、默认公开/55、导出提示升级，未生成未购买；暂由桌面处理，不挡代码推进。Sonnet本次自设预算终止而非日预算拒绝，未重试；实际费用unknown。
+
+Subrouter runner PID29232已于07:49:41UTC终止，reasonagent_exit_1；结构化错误为上游connection reset by peer，不是认证/预算拒绝。无遗留Claude或runner进程，仅新增已保存的P2-02-survival-policy-task.md，原117测试基线代码未改。已保存传输故障断点，显式medium减少单次长推理，自动request/stream重试仍0，仅计划一次受控恢复；再次同故障必须停止原样重启。用户明确取消Tripo，继续2D路线；取消所有Tripo待办，不购买/不生成。

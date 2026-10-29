@@ -30,7 +30,15 @@
       "tools/codex-task.ps1 -Provider auto",
       "tools/codex-subrouter.ps1"
     ],
-    "secret_location": "orchestration/local/subrouter.json (gitignored)"
+    "secret_location": "orchestration/local/subrouter.json (gitignored)",
+    "transport_recovery": {
+      "observed_failures": 1,
+      "failure_class": "connection reset by peer",
+      "auth_or_budget_rejection": false,
+      "controlled_resume": 1,
+      "reasoning_effort": "medium",
+      "automatic_request_stream_retries": 0
+    }
   },
   "art_production": {
     "provider": "ChatGPT built-in image_gen",
