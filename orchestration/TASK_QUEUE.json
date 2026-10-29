@@ -54,7 +54,7 @@
     {
       "id": "P2-01",
       "title": "Three real weapon attack types and equipment integration",
-      "status": "IN_REVIEW",
+      "status": "DONE",
       "acceptance": [
         "Projectile, nearby area and periodic area attacks actually deal damage",
         "Acquisition and upgrades affect combat; six unique slots maximum",
@@ -65,7 +65,7 @@
     {
       "id": "P2-02",
       "title": "Enemy variety, bot quality and normal-character balance",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "acceptance": [
         "Multiple enemy behaviours and readable difficulty curve",
         "Fixed-seed actual JSON-character reports across several seeds",

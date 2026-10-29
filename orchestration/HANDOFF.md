@@ -33,3 +33,5 @@ P1-04本地验收：Sonnet共享帧/完整模拟，Haiku原生真实JSON适配�
 PR#3已在8c9cad5推送/PR双WindowsCI成功后合并main，merge=ae4d7973041c4a75b3c80c4e24a43d19ca2f3c38。P1-04功能流程DONE，不代表默认鱼平衡完成。新分支codex/weapon-types开始P2-01，Claude Sonnet负责实现，运行时Codex只读。
 
 P2-01三类真实武器本地完成：100测试+Headless实际卡片/区域/升级+2冷启动通过，装备栏/黄环/绿池截图已检查。Sonnet session12972/exec82399已终止（error_max_budget_usd，列表估价1.0084553USD，不是已知实际扣费）；没有重试付费调用。Codex接管修复并验证。下一步PR/WindowsCI，成功才合并。正常鱼seed1自动策略150.53秒Lost，后续P2-02改善敌人/策略/平衡，绝不宣称已通20分钟。当前无外部写入者，允许Codex修改；runner仍旧agent_stop。
+
+PR#4在d3399da推送/PR双WindowsCI通过后合并main（0c582a3a40f98730d4b9f7053a0b705e889e1ed3），P2-01 DONE。P2-02先拆较小的模拟避障/选卡任务给Haiku，保持真实战斗数值不变以建立性能基线；之后再处理敌人多样性和正常角色20分钟平衡。

@@ -3,7 +3,7 @@
   "phase": 2,
   "status": "IN_PROGRESS",
   "date": "2026-10-29",
-  "branch": "codex/weapon-types",
+  "branch": "codex/simulation-steering",
   "remote": "git@github.com:littletinylee/ai_survivor.git",
   "completed": [
     "environment_probe",
@@ -16,10 +16,10 @@
   ],
   "unverified": [
     "complete_run_balance",
-    "P2-01_Windows_CI"
+    "enemy_variety"
   ],
-  "next": "P2-01 PR and exact-head Windows CI; then P2-02 enemy variety and normal-character balance",
-  "reason": "Sonnet task reached per-call list-estimate budget, stopped; Codex completed local review/fixes/testing without retrying the paid call",
-  "tests": "100 GoogleTest + native actual acquisition/area damage/upgrade checks + 2 fresh cold starts PASS; normal JSON seed1 kite Lost150.53s/148kills, visual screenshot inspected",
+  "next": "P2-02a bounded Haiku task: deterministic hazard-aware simulation steering/card choice; measure real JSON results before changing combat balance",
+  "reason": "PR4 merged0c582a3 after push40828865055 and PR40828899767 success on d3399da",
+  "tests": "100 GoogleTest + native weapon integration + 2 cold starts + normal JSON simulations PASS locally and Windows CI",
   "workspace": "E:/AI Survior/ai_survivor"
 }
