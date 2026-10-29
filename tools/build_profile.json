@@ -16,6 +16,7 @@
     "ScrollContainer",
     "VBoxContainer",
     "TextServer",
-    "Texture2D"
+    "Texture2D",
+    "ResourceLoader"
   ]
 }

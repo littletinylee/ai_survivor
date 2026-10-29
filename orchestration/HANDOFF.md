@@ -37,3 +37,7 @@ P2-01三类真实武器本地完成：100测试+Headless实际卡片/区域/升�
 PR#4在d3399da推送/PR双WindowsCI通过后合并main（0c582a3a40f98730d4b9f7053a0b705e889e1ed3），P2-01 DONE。P2-02先拆较小的模拟避障/选卡任务给Haiku，保持真实战斗数值不变以建立性能基线；之后再处理敌人多样性和正常角色20分钟平衡。
 
 P2-02a Haiku策略任务成功（CLI列表估价0.03433168USD）；Codex修接触边界代价不连续，最终107测试+Headless+2冷启动通过，真实鱼seed1/2约621/614秒Lost；未证20分钟平衡。用户美术新指令优先：大肥鱼是蓝发鲸尾女仆少女，图片生产最终选ChatGPT。Claude艺术调用已因用户更改输入/生产者主动停止，不是认证/额度失败，不应重试。ChatGPT image_gen已产透明idle V1于orchestration/local/art，RGBA1314x1197；未接入游戏，来源许可unknown仅内部候选。docs/ART_DIRECTION.md和MODEL_ROUTING已更新。仍需提交策略PR/CI、敌人多样性、20分钟平衡、角色素材接入和完整Phase3-5。
+
+PR#5已在ac89113双WindowsCI40831907354/40831845193通过后合并，merge74b12f0c0fb7a1942b78c673e4a7ad388ace25d8。用户确认参考图AI生成，按最终指令ChatGPT产图；新增生产idle-v1.png及确切提示词/ASSET_SOURCES清单，原参考图仍忽略。新分支codex/character-art先让Haiku接入idle贴图；原生成服务未提供，不虚称外部许可已核验。该步骤完成后继续敌人多样性和20分钟平衡。
+
+ART-01a静态角色本地接入通过：107测试+原生贴图+2冷启动；选人文字裁切已改自动换行，截图已检查，缺失配置素材夹具预期exit1。实际游戏现显示ChatGPT生成蓝发鲸尾女仆，stats/碰撞/模拟不变。ART-01仍IN_PROGRESS，行走动画未完成；walk-draft-v1/v2在local，alpha背景实际为0，主要失败是尾巴跨512网格/边缘太近，下一步独立姿态帧方案，不能盲重试同图集。下一步提交当前PR/WindowsCI，再继续冲锋/重装敌人和20分钟正常平衡。所有外部进程已退出；runner旧agent_stop，勿当活跃实例。
