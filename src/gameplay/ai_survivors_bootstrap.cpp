@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -13,6 +14,7 @@
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/json.hpp>
 #include <godot_cpp/classes/os.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/scroll_container.hpp>
 #include <godot_cpp/classes/text_server.hpp>
@@ -51,6 +53,9 @@ namespace {
 const char *const kCharacterDir = "res://data/characters";
 constexpr float kArenaCenterX = 550.0f;
 constexpr float kArenaCenterY = 360.0f;
+// Display heights only; hitbox radius and gameplay rules are unchanged.
+constexpr float kPlayerSpriteHeight = 108.0f;
+constexpr float kPortraitHeight = 88.0f;
 
 String to_godot(const std::string &s) { return String::utf8(s.c_str()); }
 std::string to_std(const String &s) { return std::string(s.utf8().get_data()); }
@@ -152,6 +157,11 @@ Button *make_button(Control *parent, const char *text, int size, float x,
 
 bool key_down(godot::Key key) {
     return godot::Input::get_singleton()->is_physical_key_pressed(key);
+}
+
+bool has_pixels(const godot::Ref<godot::Texture2D> &texture) {
+    return texture.is_valid() && texture->get_width() > 0 &&
+           texture->get_height() > 0;
 }
 
 // --simulate-run options; defaults match tools/simulate.ps1.
@@ -347,6 +357,8 @@ void AISurvivorsBootstrap::_bind_methods() {}
 
 void AISurvivorsBootstrap::load_characters() {
     registry_ = CharacterRegistry();
+    art_.clear();
+    texture_cache_.clear();
     load_error_.clear();
 
     godot::Ref<godot::DirAccess> dir = godot::DirAccess::open(kCharacterDir);
@@ -387,10 +399,53 @@ void AISurvivorsBootstrap::load_characters() {
     if (load_error_.empty() && registry_.empty()) {
         load_error_ = std::string("no character definitions in ") + kCharacterDir;
     }
+    if (load_error_.empty()) {
+        load_character_art();
+    }
     if (!load_error_.empty()) {
         godot::UtilityFunctions::push_error(
             to_godot("Character load failed: " + load_error_));
     }
+}
+
+void AISurvivorsBootstrap::load_character_art() {
+    for (const CharacterDefinition &c : registry_.characters()) {
+        // Empty asset means "not configured": no portrait, or the procedural
+        // fallback for the sprite. A configured path that fails is an error.
+        CharacterArt art;
+        std::string err;
+        if (!c.portrait_asset.empty()) {
+            art.portrait = load_texture(c.portrait_asset, err);
+            if (!err.empty()) {
+                load_error_ = c.id + " portrait_asset: " + err;
+                return;
+            }
+        }
+        if (!c.sprite_asset.empty()) {
+            art.sprite = load_texture(c.sprite_asset, err);
+            if (!err.empty()) {
+                load_error_ = c.id + " sprite_asset: " + err;
+                return;
+            }
+        }
+        art_[c.id] = art;
+    }
+}
+
+godot::Ref<godot::Texture2D> AISurvivorsBootstrap::load_texture(const std::string &path,
+                                                              std::string &err) {
+    const auto cached = texture_cache_.find(path);
+    if (cached != texture_cache_.end()) {
+        return cached->second;
+    }
+    godot::Ref<godot::Texture2D> texture =
+        godot::ResourceLoader::get_singleton()->load(to_godot(path));
+    if (!has_pixels(texture)) {
+        err = "cannot load a non-empty Texture2D from " + path;
+        return godot::Ref<godot::Texture2D>();
+    }
+    texture_cache_[path] = texture;
+    return texture;
 }
 
 void AISurvivorsBootstrap::build_ui() {
@@ -468,7 +523,18 @@ void AISurvivorsBootstrap::populate_character_buttons() {
         Button *button = make_button(character_list_, text, 20, 250.0f,
                                      150.0f + 110.0f * static_cast<float>(i),
                                      600, 100);
-        button->set_custom_minimum_size(Vector2(600, 110));
+        button->set_custom_minimum_size(Vector2(600, 140));
+        button->set_autowrap_mode(godot::TextServer::AUTOWRAP_WORD_SMART);
+        const auto art = art_.find(c.id);
+        if (art != art_.end() && has_pixels(art->second.portrait)) {
+            // icon_max_width caps the width; the icon's height follows its aspect.
+            const double aspect = static_cast<double>(art->second.portrait->get_width()) /
+                                  static_cast<double>(art->second.portrait->get_height());
+            button->set_button_icon(art->second.portrait);
+            button->add_theme_constant_override(
+                "icon_max_width",
+                static_cast<int>(std::lround(kPortraitHeight * aspect)));
+        }
         button->connect("pressed",
                         callable_mp(this,
                                     &AISurvivorsBootstrap::on_character_pressed)
@@ -521,6 +587,9 @@ void AISurvivorsBootstrap::start_battle(const std::string &character_id) {
     clear_card_buttons();
     progression_ = std::move(session);
     active_character_ = character;
+    const auto art = art_.find(character->id);
+    active_sprite_ = art != art_.end() ? art->second.sprite
+                                       : godot::Ref<godot::Texture2D>();
     // Run-local state is recreated for each battle.
     states_ = GameStateManager();
     timer_ = std::make_unique<GameTimer>(states_);
@@ -663,6 +732,7 @@ void AISurvivorsBootstrap::on_back_to_menu_pressed() {
     timer_.reset();
     world_.reset();
     active_character_ = nullptr;
+    active_sprite_ = godot::Ref<godot::Texture2D>();
     show_screen(Screen::kMenu);
 }
 
@@ -809,6 +879,22 @@ void AISurvivorsBootstrap::_draw() {
     const Vector2 p =
         center + Vector2(static_cast<float>(player_.position().x),
                          static_cast<float>(player_.position().y));
+    if (has_pixels(active_sprite_)) {
+        // Whole texture, aspect preserved, centred on the player. Mirrored when
+        // facing left; the transform is reset right after drawing.
+        const float w = static_cast<float>(active_sprite_->get_width());
+        const float h = static_cast<float>(active_sprite_->get_height());
+        const float draw_w = w * kPlayerSpriteHeight / h;
+        const float mirror = facing_ < 0.0 ? -1.0f : 1.0f;
+        draw_set_transform(p, 0.0f, Vector2(mirror, 1.0f));
+        draw_texture_rect(active_sprite_,
+                          godot::Rect2(-draw_w * 0.5f, -kPlayerSpriteHeight * 0.5f,
+                                       draw_w, kPlayerSpriteHeight),
+                          false);
+        draw_set_transform(Vector2(0.0f, 0.0f), 0.0f, Vector2(1.0f, 1.0f));
+        return;
+    }
+    // Procedural fish: only for characters with no sprite_asset configured.
     const float f = static_cast<float>(facing_);
     const Color deep(0.10f, 0.35f, 0.80f, 1.0f);
     const Color mid(0.20f, 0.55f, 0.95f, 1.0f);
@@ -848,6 +934,13 @@ bool AISurvivorsBootstrap::run_native_checks() {
     }
     if (fish->max_hp != 100.0 || fish->move_speed != 220.0) {
         return fail("deepseek_big_fish numeric defaults wrong");
+    }
+    // The default character must have real art: configured, loaded, non-empty.
+    const auto fish_art = art_.find(fish->id);
+    if (fish->sprite_asset.empty() || fish->portrait_asset.empty() ||
+        fish_art == art_.end() || !has_pixels(fish_art->second.sprite) ||
+        !has_pixels(fish_art->second.portrait)) {
+        return fail("deepseek_big_fish sprite or portrait texture not loaded");
     }
 
     GameStateManager states;

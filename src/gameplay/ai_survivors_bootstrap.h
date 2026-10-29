@@ -1,11 +1,13 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
 
 #include <godot_cpp/classes/control.hpp>
 #include <godot_cpp/classes/label.hpp>
 #include <godot_cpp/classes/node2d.hpp>
+#include <godot_cpp/classes/texture2d.hpp>
 
 #include <cstdint>
 #include <vector>
@@ -50,6 +52,10 @@ private:
 
     void build_ui();
     void load_characters();
+    // Loads configured portrait/sprite textures once per (re)load. A configured
+    // asset that cannot be loaded sets load_error_; nothing falls back silently.
+    void load_character_art();
+    godot::Ref<godot::Texture2D> load_texture(const std::string &path, std::string &err);
     void populate_character_buttons();
     void show_screen(Screen screen);
     void start_battle(const std::string &character_id);
@@ -94,6 +100,17 @@ private:
 
     CharacterRegistry registry_;
     std::string load_error_;
+
+    // Textures are keyed by character id (art_) and by res:// path
+    // (texture_cache_, so a shared path is one texture). Both are cleared on reload.
+    struct CharacterArt {
+        godot::Ref<godot::Texture2D> portrait;
+        godot::Ref<godot::Texture2D> sprite;
+    };
+    std::map<std::string, CharacterArt> art_;
+    std::map<std::string, godot::Ref<godot::Texture2D>> texture_cache_;
+    // Sprite of the active battle character; null means procedural fallback.
+    godot::Ref<godot::Texture2D> active_sprite_;
 
     static constexpr double kArenaHalfWidth = 520.0;
     static constexpr double kArenaHalfHeight = 290.0;

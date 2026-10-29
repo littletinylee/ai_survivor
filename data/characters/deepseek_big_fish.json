@@ -1,9 +1,9 @@
 {
   "id": "deepseek_big_fish",
   "name": "DeepSeek 大肥鱼",
-  "description": "一条圆滚滚的蓝色大鱼，皮厚血多，游得又稳又快。",
-  "portrait_asset": "",
-  "sprite_asset": "",
+  "description": "蓝发鲸尾的女仆少女，用泡泡与涟漪守护海底。",
+  "portrait_asset": "res://assets/characters/deepseek_big_fish/idle-v1.png",
+  "sprite_asset": "res://assets/characters/deepseek_big_fish/idle-v1.png",
   "animation_asset": "",
   "max_hp": 100,
   "move_speed": 220,
