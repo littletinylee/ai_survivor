@@ -3,7 +3,7 @@
   "phase": 2,
   "status": "IN_PROGRESS",
   "date": "2026-10-29",
-  "branch": "codex/character-art",
+  "branch": "codex/enemy-variety",
   "remote": "git@github.com:littletinylee/ai_survivor.git",
   "completed": [
     "environment_probe",
@@ -17,11 +17,11 @@
   "unverified": [
     "complete_run_balance",
     "enemy_variety",
-    "ART-01a_Windows_CI",
-    "walk_animation"
+    "walk_animation",
+    "Tripo_authenticated_generation"
   ],
-  "next": "ART-01a PR and WindowsCI; then telegraphed charger/brute enemies, balance and individually aligned walk frames",
-  "reason": "User confirms reference AI-generated; native configured idle/portrait rendered and reviewed, draft walk atlases rejected by layout QA",
-  "tests": "107 GoogleTest + native texture integration + 2 cold starts PASS; missing-art fixture exits1; select/battle screenshots reviewed; normal seed1 unchanged621sLost",
+  "next": "P2-02b Claude implementation of telegraphed charger/brute; Tripo waits for user login, independent code work continues",
+  "reason": "PR6 merged6c62507 after WindowsCI40833840316/40833818528 success; idle art verified",
+  "tests": "107 GoogleTest + native texture load +2 cold starts PASS locally and WindowsCI; missing-art fixture expected1, screenshots reviewed",
   "workspace": "E:/AI Survior/ai_survivor"
 }

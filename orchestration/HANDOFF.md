@@ -41,3 +41,5 @@ P2-02a Haiku策略任务成功（CLI列表估价0.03433168USD）；Codex修接�
 PR#5已在ac89113双WindowsCI40831907354/40831845193通过后合并，merge74b12f0c0fb7a1942b78c673e4a7ad388ace25d8。用户确认参考图AI生成，按最终指令ChatGPT产图；新增生产idle-v1.png及确切提示词/ASSET_SOURCES清单，原参考图仍忽略。新分支codex/character-art先让Haiku接入idle贴图；原生成服务未提供，不虚称外部许可已核验。该步骤完成后继续敌人多样性和20分钟平衡。
 
 ART-01a静态角色本地接入通过：107测试+原生贴图+2冷启动；选人文字裁切已改自动换行，截图已检查，缺失配置素材夹具预期exit1。实际游戏现显示ChatGPT生成蓝发鲸尾女仆，stats/碰撞/模拟不变。ART-01仍IN_PROGRESS，行走动画未完成；walk-draft-v1/v2在local，alpha背景实际为0，主要失败是尾巴跨512网格/边缘太近，下一步独立姿态帧方案，不能盲重试同图集。下一步提交当前PR/WindowsCI，再继续冲锋/重装敌人和20分钟正常平衡。所有外部进程已退出；runner旧agent_stop，勿当活跃实例。
+
+PR#6已在598251c双WindowsCI通过后合并main，merge6c6250702503debd4f851f8faf68b037bada7faa。用户授权试Tripo生产角色，现IAB tab1工作区上传按钮弹登录窗，需要用户本人登录；已保存tripo-login.jpg并保留页面，未上传/未生成/未购买。Tripo默认可见性公开，登录后先核对私密选项、账户额度和导出，不盲点付费。代码独立继续P2-02b冲锋/重装敌人。
