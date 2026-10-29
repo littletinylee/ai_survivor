@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
+#include <utility>
 
 #include "core/combat.h"
 #include "core/game_timer.h"
@@ -15,6 +17,33 @@ namespace {
 
 constexpr std::uint64_t kFnvOffset = 14695981039346656037ULL;
 constexpr std::uint64_t kFnvPrime = 1099511628211ULL;
+
+// KiteBot scoring. Distances are world units; penalties and progress are in
+// the same score currency, so 1 point ~ 1 unit of progress toward an orb.
+constexpr double kTwoPi = 6.283185307179586;
+constexpr double kSafeClearance = 48.0;   // wanted gap beyond the predicted reach
+constexpr double kClearanceWeight = 1.0;  // per unit of clearance deficit
+constexpr double kContactPenalty = 40.0;  // per enemy per step with clearance < 0
+constexpr double kWallHitPenalty = 8.0;   // per step where the arena clamped a move
+constexpr double kWallMargin = 60.0;      // preferred gap to walls at horizon end
+constexpr double kWallWeight = 0.5;       // per unit of wall-margin deficit
+constexpr double kProgressWeight = 1.0;   // per unit gained toward the target orb
+constexpr double kCentreWeight = 0.02;    // per unit moved toward the arena centre
+constexpr double kPersistWeight = 4.0;    // times cos(angle to previous heading)
+
+// Card priorities. Higher is better; unknown or unusable cards sort last.
+constexpr int kUnknownCardPriority = -1000;
+constexpr int kNewWeaponPriority = 100;
+constexpr int kInjuredHpPriority = 90;
+constexpr int kPrimaryUpgradePriority = 70;
+constexpr int kDamageOrSpeedPriority = 65;
+constexpr int kOtherUpgradePriority = 60;
+constexpr int kPickupPriority = 55;
+constexpr int kMovePriority = 50;
+constexpr int kCritPriority = 40;
+constexpr int kArmorPriority = 35;
+constexpr int kHealthyHpPriority = 30;
+constexpr double kInjuredFraction = 0.6;
 
 void mix(std::uint64_t &h, std::uint64_t v) {
     for (int i = 0; i < 8; ++i) {
@@ -35,62 +64,199 @@ void mix_text(std::uint64_t &h, const std::string &s) {
     }
 }
 
-struct Input {
-    double x = 0.0;
-    double y = 0.0;
-};
+double dist2(Vec2 a, Vec2 b) {
+    const double dx = a.x - b.x;
+    const double dy = a.y - b.y;
+    return dx * dx + dy * dy;
+}
 
-Input choose_input(SimulationPolicy policy, const PlayerController &player,
-                   const CombatWorld &world,
-                   const ProgressionSession &progression) {
-    Input in;
+int card_priority(const std::string &id, const ProgressionSession &progression,
+                  double hp_fraction) {
+    const CardDefinition *card = progression.cards().find(id);
+    if (card == nullptr) {
+        return kUnknownCardPriority;
+    }
+    const WeaponInventory &inventory = progression.inventory();
+    if (card->kind == CardKind::kWeaponAcquire) {
+        const WeaponDefinition *weapon =
+            progression.weapons().find(card->weapon_id);
+        const bool wanted = weapon != nullptr && weapon->implemented &&
+                            !inventory.has(card->weapon_id) &&
+                            !inventory.full();
+        return wanted ? kNewWeaponPriority : kUnknownCardPriority;
+    }
+    if (card->kind == CardKind::kWeaponUpgrade) {
+        if (!inventory.can_upgrade(card->weapon_id)) {
+            return kUnknownCardPriority;
+        }
+        const bool primary = !inventory.entries().empty() &&
+                             inventory.entries().front().id == card->weapon_id;
+        return primary ? kPrimaryUpgradePriority : kOtherUpgradePriority;
+    }
+    if (card->kind == CardKind::kAttribute) {
+        switch (card->stat) {
+        case StatKind::kMaxHp:
+            return hp_fraction < kInjuredFraction ? kInjuredHpPriority
+                                                  : kHealthyHpPriority;
+        case StatKind::kAttackSpeed:
+        case StatKind::kDamage:
+            return kDamageOrSpeedPriority;
+        case StatKind::kPickupRadius:
+            return kPickupPriority;
+        case StatKind::kMoveSpeed:
+            return kMovePriority;
+        case StatKind::kCrit:
+            return kCritPriority;
+        case StatKind::kArmor:
+            return kArmorPriority;
+        case StatKind::kNone:
+            return 0;
+        }
+    }
+    return kUnknownCardPriority;
+}
+
+KiteBot::Input choose_input(SimulationPolicy policy, KiteBot &bot,
+                            const PlayerController &player,
+                            const CombatWorld &world,
+                            const ProgressionSession &progression) {
     if (policy == SimulationPolicy::kStationary) {
-        return in;
+        return KiteBot::Input{};
     }
-    const Vec2 p = player.position();
-    constexpr double kFleeRange = 220.0;
-    double best = kFleeRange * kFleeRange;
-    const Enemy *nearest = nullptr;
-    for (const Enemy &e : world.enemies()) {
-        const double dx = e.position.x - p.x;
-        const double dy = e.position.y - p.y;
-        const double d2 = dx * dx + dy * dy;
-        if (d2 < best) {
-            best = d2;
-            nearest = &e;
-        }
-    }
-    const CombatConfig &cfg = world.config();
-    if (nearest != nullptr) {
-        in.x = p.x - nearest->position.x;
-        in.y = p.y - nearest->position.y;
-        // Pull toward the centre near walls so fleeing does not pin the bot.
-        if (std::fabs(p.x) > cfg.arena_half_width - 120.0) in.x -= p.x * 2.0;
-        if (std::fabs(p.y) > cfg.arena_half_height - 90.0) in.y -= p.y * 2.0;
-    } else {
-        double best_orb = 1e18;
-        for (const XpOrb &o : progression.experience().orbs()) {
-            const double dx = o.position.x - p.x;
-            const double dy = o.position.y - p.y;
-            const double d2 = dx * dx + dy * dy;
-            if (d2 < best_orb) {
-                best_orb = d2;
-                in.x = dx;
-                in.y = dy;
-            }
-        }
-    }
-    const double len = std::sqrt(in.x * in.x + in.y * in.y);
-    if (len > 1e-9) {
-        in.x /= len;
-        in.y /= len;
-    } else {
-        in = Input{};
-    }
-    return in;
+    return bot.next_input(player.position(), world, progression);
 }
 
 } // namespace
+
+KiteBot::Input KiteBot::next_input(Vec2 player, const CombatWorld &world,
+                                   const ProgressionSession &progression) {
+    if (frames_left_ <= 0) {
+        cached_ = plan(player, world, progression);
+        heading_ = cached_;
+        frames_left_ = kDecisionFrames;
+    }
+    --frames_left_;
+    return cached_;
+}
+
+KiteBot::Input KiteBot::plan(Vec2 p, const CombatWorld &world,
+                             const ProgressionSession &progression) const {
+    const CombatConfig &cfg = world.config();
+    const double dt = SimulationResult::kStepSeconds;
+    const double speed = progression.stats().move_speed;
+    const double pr = cfg.player_radius;
+    // Same reachable area as PlayerController: the body stays inside the arena.
+    const double wall_x = cfg.arena_half_width - pr;
+    const double wall_y = cfg.arena_half_height - pr;
+
+    // Nearest threats first; equal distances fall back to the lower id.
+    std::vector<const Enemy *> threats;
+    threats.reserve(world.enemies().size());
+    for (const Enemy &e : world.enemies()) {
+        threats.push_back(&e);
+    }
+    const std::size_t keep = std::min(threats.size(), kMaxThreats);
+    std::partial_sort(threats.begin(),
+                      threats.begin() + static_cast<std::ptrdiff_t>(keep),
+                      threats.end(),
+                      [p](const Enemy *a, const Enemy *b) {
+                          const double da = dist2(p, a->position);
+                          const double db = dist2(p, b->position);
+                          if (da != db) {
+                              return da < db;
+                          }
+                          return a->id < b->id;
+                      });
+    threats.resize(keep);
+
+    // Nearest orb within a bounded scan; first index wins on equal distance.
+    const std::vector<XpOrb> &orbs = progression.experience().orbs();
+    bool has_target = false;
+    Vec2 target;
+    double target_d2 = 0.0;
+    for (std::size_t i = 0; i < orbs.size() && i < kMaxOrbScan; ++i) {
+        const double d2 = dist2(p, orbs[i].position);
+        if (!has_target || d2 < target_d2) {
+            has_target = true;
+            target_d2 = d2;
+            target = orbs[i].position;
+        }
+    }
+    const double target_d0 = has_target ? std::sqrt(target_d2) : 0.0;
+
+    Input best;
+    double best_score = -std::numeric_limits<double>::max();
+    // Candidates 0..kHeadings-1 are headings; index kHeadings is stop (zero).
+    for (int c = 0; c <= kHeadings; ++c) {
+        Input dir;
+        if (c < kHeadings) {
+            const double angle = kTwoPi * c / kHeadings;
+            dir.x = std::cos(angle);
+            dir.y = std::sin(angle);
+        }
+        double score = 0.0;
+        Vec2 q = p;
+        for (int k = 1; k <= kHorizonFrames; ++k) {
+            const double t = k * dt;
+            const double rx = q.x + dir.x * speed * dt;
+            const double ry = q.y + dir.y * speed * dt;
+            const Vec2 next{std::clamp(rx, -wall_x, wall_x),
+                            std::clamp(ry, -wall_y, wall_y)};
+            if (next.x != rx || next.y != ry) {
+                score -= kWallHitPenalty;
+            }
+            q = next;
+            for (const Enemy *e : threats) {
+                // Enemies may close in at their own speed during t.
+                const double clear = std::sqrt(dist2(q, e->position)) - pr -
+                                     e->radius - e->speed * t;
+                if (clear < kSafeClearance) {
+                    score -= kClearanceWeight * (kSafeClearance - clear);
+                }
+                if (clear < 0.0) {
+                    score -= kContactPenalty;
+                }
+            }
+        }
+        const double slack =
+            std::min(wall_x - std::fabs(q.x), wall_y - std::fabs(q.y));
+        if (slack < kWallMargin) {
+            score -= kWallWeight * (kWallMargin - slack);
+        }
+        if (has_target) {
+            score += kProgressWeight * (target_d0 - std::sqrt(dist2(q, target)));
+        }
+        score += kCentreWeight * (std::sqrt(dist2(Vec2{}, p)) -
+                                  std::sqrt(dist2(Vec2{}, q)));
+        score += kPersistWeight * (dir.x * heading_.x + dir.y * heading_.y);
+        if (score > best_score) {
+            best_score = score;
+            best = dir;
+        }
+    }
+    return best;
+}
+
+std::vector<std::string> KiteBot::rank_cards(const UpgradeOffer &offer,
+                                             const ProgressionSession &progression,
+                                             double hp_fraction) {
+    std::vector<std::pair<int, std::string>> ranked;
+    ranked.reserve(offer.card_ids.size());
+    for (const std::string &id : offer.card_ids) {
+        ranked.emplace_back(card_priority(id, progression, hp_fraction), id);
+    }
+    std::stable_sort(ranked.begin(), ranked.end(),
+                     [](const std::pair<int, std::string> &a,
+                        const std::pair<int, std::string> &b) {
+                         return a.first > b.first;
+                     });
+    std::vector<std::string> ids;
+    ids.reserve(ranked.size());
+    for (auto &entry : ranked) {
+        ids.push_back(std::move(entry.second));
+    }
+    return ids;
+}
 
 SimulationResult run_simulation(const CharacterDefinition &character,
                                 std::uint64_t seed, SimulationPolicy policy) {
@@ -119,6 +285,7 @@ SimulationResult run_simulation(const CharacterDefinition &character,
         return r;
     }
     states.start_run();
+    KiteBot bot;
 
     // Total passes (frames and upgrade choices) are bounded by kMaxIterations.
     for (std::uint64_t iter = 0;
@@ -135,8 +302,15 @@ SimulationResult run_simulation(const CharacterDefinition &character,
             }
             const UpgradeOffer offer = progression.cards().current_offer();
             ++r.upgrade_offers;
+            // Stationary keeps offer order (the weak baseline); kite ranks cards.
+            const double hp_fraction =
+                world.max_hp() > 0.0 ? world.hp() / world.max_hp() : 1.0;
+            const std::vector<std::string> order =
+                policy == SimulationPolicy::kKiteAndCollect
+                    ? KiteBot::rank_cards(offer, progression, hp_fraction)
+                    : offer.card_ids;
             bool applied = false;
-            for (const std::string &id : offer.card_ids) {
+            for (const std::string &id : order) {
                 const ChooseRunResult c = choose_run_upgrade(
                     states, world, player, progression, offer.generation, id);
                 if (c.result == ChooseResult::kApplied) {
@@ -155,7 +329,8 @@ SimulationResult run_simulation(const CharacterDefinition &character,
                 std::max(r.peak_weapons, progression.inventory().entries().size());
             continue; // choices consume no survival time
         }
-        const Input in = choose_input(policy, player, world, progression);
+        const KiteBot::Input in =
+            choose_input(policy, bot, player, world, progression);
         const RunStepResult step =
             advance_run(states, timer, player, world, progression,
                         SimulationResult::kStepSeconds, in.x, in.y);

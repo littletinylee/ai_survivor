@@ -3,15 +3,60 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "core/character.h"
+#include "core/combat.h"
 #include "core/game_state.h"
+#include "core/player_controller.h"
+#include "core/progression.h"
 
 namespace ai_survivors {
 
 enum class SimulationPolicy {
-    kStationary,   // never moves
-    kKiteAndCollect, // flees nearby enemies, otherwise walks to the nearest orb
+    kStationary,   // never moves; takes the first offered card
+    kKiteAndCollect, // KiteBot steering; takes the highest-ranked offered card
+};
+
+// Deterministic lookahead steering for kKiteAndCollect. It only reads the world
+// and emits an ordinary normalized input; it never mutates game state. Public so
+// scenario tests can drive single decisions.
+//
+// The bot scores kHeadings directions plus stop by simulating kHorizonFrames
+// frames against the nearest kMaxThreats enemies (treated as stationary but
+// with their speed added as a clearance margin) and clamps the player to the
+// arena. Results are cached for kDecisionFrames frames, which is 10 Hz at 60 Hz.
+class KiteBot {
+public:
+    static constexpr int kHeadings = 16;            // candidate directions, plus stop
+    static constexpr int kHorizonFrames = 10;       // lookahead, 1/6 s
+    static constexpr int kDecisionFrames = 6;       // re-plan every 0.1 s
+    static constexpr std::size_t kMaxThreats = 32;  // nearest enemies scored
+    static constexpr std::size_t kMaxOrbScan = 128; // orbs scanned for a target
+
+    struct Input {
+        double x = 0.0;
+        double y = 0.0;
+    };
+
+    // Returns the cached decision, re-planning once every kDecisionFrames calls.
+    Input next_input(Vec2 player, const CombatWorld &world,
+                     const ProgressionSession &progression);
+
+    // Offered card ids sorted by the bot's priority (highest first). Ties keep
+    // offer order. Unknown ids sort last but are still returned, so the caller's
+    // fallback loop still tries them. hp_fraction is HP / max HP.
+    static std::vector<std::string> rank_cards(const UpgradeOffer &offer,
+                                               const ProgressionSession &progression,
+                                               double hp_fraction);
+
+private:
+    Input plan(Vec2 player, const CombatWorld &world,
+               const ProgressionSession &progression) const;
+
+    Input cached_;
+    Input heading_; // last planned direction, used for persistence
+    int frames_left_ = 0;
 };
 
 // Outcome of one deterministic headless run. Nothing here is forced: the

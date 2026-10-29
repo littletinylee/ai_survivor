@@ -16,10 +16,12 @@
   ],
   "unverified": [
     "complete_run_balance",
-    "enemy_variety"
+    "enemy_variety",
+    "P2-02a_Windows_CI",
+    "reference_character_art_integration"
   ],
-  "next": "P2-02a bounded Haiku task: deterministic hazard-aware simulation steering/card choice; measure real JSON results before changing combat balance",
-  "reason": "PR4 merged0c582a3 after push40828865055 and PR40828899767 success on d3399da",
-  "tests": "100 GoogleTest + native weapon integration + 2 cold starts + normal JSON simulations PASS locally and Windows CI",
+  "next": "Commit and CI for deterministic policy; then enemy variety/normal balance and ChatGPT-generated reference-correct character assets",
+  "reason": "Haiku policy measured normal fish621/614seconds Lost; user reference and final art-production preference recorded",
+  "tests": "107 GoogleTest + native Headless + 2 fresh cold starts PASS; PNG candidate RGBA checked, not integrated",
   "workspace": "E:/AI Survior/ai_survivor"
 }

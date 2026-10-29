@@ -35,3 +35,5 @@ PR#3已在8c9cad5推送/PR双WindowsCI成功后合并main，merge=ae4d7973041c4a
 P2-01三类真实武器本地完成：100测试+Headless实际卡片/区域/升级+2冷启动通过，装备栏/黄环/绿池截图已检查。Sonnet session12972/exec82399已终止（error_max_budget_usd，列表估价1.0084553USD，不是已知实际扣费）；没有重试付费调用。Codex接管修复并验证。下一步PR/WindowsCI，成功才合并。正常鱼seed1自动策略150.53秒Lost，后续P2-02改善敌人/策略/平衡，绝不宣称已通20分钟。当前无外部写入者，允许Codex修改；runner仍旧agent_stop。
 
 PR#4在d3399da推送/PR双WindowsCI通过后合并main（0c582a3a40f98730d4b9f7053a0b705e889e1ed3），P2-01 DONE。P2-02先拆较小的模拟避障/选卡任务给Haiku，保持真实战斗数值不变以建立性能基线；之后再处理敌人多样性和正常角色20分钟平衡。
+
+P2-02a Haiku策略任务成功（CLI列表估价0.03433168USD）；Codex修接触边界代价不连续，最终107测试+Headless+2冷启动通过，真实鱼seed1/2约621/614秒Lost；未证20分钟平衡。用户美术新指令优先：大肥鱼是蓝发鲸尾女仆少女，图片生产最终选ChatGPT。Claude艺术调用已因用户更改输入/生产者主动停止，不是认证/额度失败，不应重试。ChatGPT image_gen已产透明idle V1于orchestration/local/art，RGBA1314x1197；未接入游戏，来源许可unknown仅内部候选。docs/ART_DIRECTION.md和MODEL_ROUTING已更新。仍需提交策略PR/CI、敌人多样性、20分钟平衡、角色素材接入和完整Phase3-5。

@@ -102,6 +102,17 @@
         "Full regression and clean Windows package smoke test",
         "Release candidate review; publication requires explicit approval"
       ]
+    },
+    {
+      "id": "ART-01",
+      "title": "ChatGPT production of reference-correct whale-tail maid character assets",
+      "status": "IN_PROGRESS",
+      "acceptance": [
+        "Use supplied blue-haired whale-tail maid identity, not ordinary fish",
+        "Transparent idle/walk frames with consistent proportions and anchors",
+        "Integrate and visually verify character at actual game size",
+        "Record input provenance and production-asset permission status"
+      ]
     }
   ]
 }
