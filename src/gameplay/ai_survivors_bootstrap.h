@@ -18,6 +18,7 @@
 #include "core/game_timer.h"
 #include "core/player_controller.h"
 #include "core/progression.h"
+#include "core/run_step.h"
 
 namespace ai_survivors {
 
@@ -53,20 +54,16 @@ private:
     void show_screen(Screen screen);
     void start_battle(const std::string &character_id);
     void refresh_battle_ui();
-    // One Playing frame after movement: combat -> timer (only if still
-    // Playing) -> XP pickup / upgrade transition (only if still Playing).
-    // Does nothing in any other state.
-    void advance_frame(double delta);
+    // One Playing frame via core/run_step advance_run (movement, combat,
+    // timer, XP, upgrade offer). Does nothing in any other state.
+    void advance_frame(double delta, double input_x = 0.0, double input_y = 0.0);
     // Advances movement-less frames in fixed steps via advance_frame.
     void simulate_battle(double seconds);
 
-    // Upgrade flow: Playing -> Upgrade stays until every queued level is
-    // resolved; empty pools resolve levels without a reward.
-    void begin_upgrade_flow();
-    void continue_upgrade_flow();
+    // Presentation only: rebuilds card buttons when an offer opens or changes.
+    void present_upgrade(UpgradePrep prep);
     void show_offer();
     void clear_card_buttons();
-    void apply_runtime_stats();
     void on_card_pressed(const godot::String &card_id, int64_t generation);
 
     void on_start_pressed();

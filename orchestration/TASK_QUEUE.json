@@ -33,7 +33,7 @@
     {
       "id": "P1-03",
       "title": "Experience and upgrade cards",
-      "status": "LOCAL_VERIFIED_PENDING_CI",
+      "status": "DONE",
       "acceptance": [
         "Kills drop collectable experience",
         "Continuous upgrades queue correctly",
@@ -43,12 +43,64 @@
     {
       "id": "P1-04",
       "title": "Complete run loop",
-      "status": "TODO",
+      "status": "IN_REVIEW",
       "acceptance": [
         "Menu and character select lead to gameplay",
         "Zero HP loses",
         "1200 seconds wins",
         "Fixed-seed accelerated full-run simulation passes"
+      ]
+    },
+    {
+      "id": "P2-01",
+      "title": "Three real weapon attack types and equipment integration",
+      "status": "TODO",
+      "acceptance": [
+        "Projectile, nearby area and periodic area attacks actually deal damage",
+        "Acquisition and upgrades affect combat; six unique slots maximum",
+        "Native UI and deterministic simulation use the same weapon state",
+        "Build, unit, native integration and Windows CI pass"
+      ]
+    },
+    {
+      "id": "P2-02",
+      "title": "Enemy variety, bot quality and normal-character balance",
+      "status": "TODO",
+      "acceptance": [
+        "Multiple enemy behaviours and readable difficulty curve",
+        "Fixed-seed actual JSON-character reports across several seeds",
+        "Demonstrate normal-character 1200-second victory without fixture overrides; retain stationary/death baseline",
+        "Record policy limitations, no false claim about human play quality"
+      ]
+    },
+    {
+      "id": "P3-01",
+      "title": "Character passives and additional original or licensed characters",
+      "status": "TODO",
+      "acceptance": [
+        "Configured passive changes gameplay and has tests",
+        "New characters work without combat refactor",
+        "External OC author, source and permission recorded"
+      ]
+    },
+    {
+      "id": "P4-01",
+      "title": "Art, audio, UI feedback and performance",
+      "status": "TODO",
+      "acceptance": [
+        "Consistent original or licensed assets",
+        "Readable combat effects and audio",
+        "Bounded entity stress checks and Windows performance measurements"
+      ]
+    },
+    {
+      "id": "P5-01",
+      "title": "Windows packaging and release preparation",
+      "status": "TODO",
+      "acceptance": [
+        "Settings, documentation and error handling",
+        "Full regression and clean Windows package smoke test",
+        "Release candidate review; publication requires explicit approval"
       ]
     }
   ]

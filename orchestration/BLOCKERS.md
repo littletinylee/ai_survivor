@@ -1,6 +1,8 @@
-# 当前状态
-- 用户明确当前仅验收 Windows；Linux CI排障已取消，后续平台扩展再处理。
-- Windows 本地22项单测、原生Headless和启动截图已通过；正在配置Windows托管CI并确认编译器库存。
-- Claude Haiku/Sonnet官方可用；DeepSeek文件开发和Subrouter备用均已验证。
-- GitHub SSH推送可用；插件尚未向当前会话提供PR操作工具。
-- Subrouter每日100 CNY硬上限由用户确认，独立运行器有界运行。
+# 当前状态（2026-10-29）
+
+- 当前没有阻止常规开发的认证或工具链阻塞。仅验收 Windows；Linux 排障已取消。
+- Claude Haiku/Sonnet 官方可用；DeepSeek 文件开发和 Subrouter 备用已验证。GitHub 插件 PR 操作已验证。
+- Subrouter 每日 100 CNY 后台硬上限由用户确认；实际花费仍 unknown。
+- PR #1、#2 均经 Windows CI 通过后合并。P1-04 本地 87 测试、原生集成、2 个全新目录冷启动通过，等待新 PR 的 CI。
+- 默认鱼自动策略仅存活约 36–47 秒；20 分钟平衡尚未证明。当前只有泡泡弹实际攻击，后续补三类武器与平衡。
+- 旧独立运行器已以 agent_stop 退出，PID 不存在；当前聊天接管，禁止同时启动另一个工作树写入者。
