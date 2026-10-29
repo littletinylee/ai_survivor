@@ -21,3 +21,5 @@ WindowsCI编译器库存实际证据run40767419942：14.29.30133、14.44.35207�
 
 2026-10-29 P1-02：Sonnet完成纯C++CombatWorld、EnemyManager、WeaponManager、ProjectileSystem、DamageSystem、WaveDirector；敌人追击、自动瞄准泡泡、接触伤害冷却、击杀事件、死亡/胜利覆盖层已接入。Codex实测本机构建、52项GoogleTest及现有缓存目录的Headless集成通过；build/combat00000089.png截图可见敌人、泡泡和击杀2。未实现经验/卡片。
 新发现的启动回归：将最少运行文件复制到全新项目内build/clean-import-check，第一次Godot编辑器导入退出-1073741819，第二次退出0；无扩展plain-engine-check首次导入0。远端WindowsCI run40768586994同样首次导入访问冲突，不能将缓存目录成功等同于全新安装成功。SDK10.0.0-stable对照仍首次导入失败，已恢复原锁定commit1b089f2，未更改依赖。
+
+2026-10-29 冷启动根因/缓解：与Godot官方已确认issue111048（EditorHelp文档生成在过早退出时的清理竞态）吻合。仅为编辑器导入加入 --frame-delay1000，原有非零码/ERROR/超时检查全部保留，禁止忽略失败或预写缓存。52单测、根目录集成及3个全新隔离目录的首次导入+原生集成都通过；每个新目录仅尝试一次。引擎和godot-cpp锁不变。云端WindowsCI待复验。

@@ -18,8 +18,8 @@
     "windows_ci",
     "phase1_gameplay"
   ],
-  "next": "Fix reproducible first-import native extension crash on Windows; then P1-03 experience and upgrade cards",
-  "reason": "Combat is implemented locally; fresh-install smoke revealed cached editor state masks startup failure. No main merge.",
-  "tests": "52 GoogleTest PASS; cached Windows Headless PASS; combat screenshot inspected; fresh first import and Windows CI FAIL access violation",
+  "next": "Verify Windows CI cold-start mitigation, then mark Phase0/character/combat tasks accepted and implement P1-03 experience/cards",
+  "reason": "Upstream Godot editor documentation shutdown race identified; bounded frame-delay mitigation plus true cold-start regression passed locally, no cache seeding or ignored errors.",
+  "tests": "52 GoogleTest PASS; cached Headless PASS; 3 independent cold first-import + native integration PASS; Windows CI pending mitigation rerun",
   "workspace": "E:/AI Survior/ai_survivor"
 }

@@ -23,7 +23,7 @@
     {
       "id": "P1-02",
       "title": "Enemy pursuit and automatic projectile combat",
-      "status": "LOCAL_VERIFIED_PENDING_COLD_START_FIX",
+      "status": "LOCAL_VERIFIED_PENDING_CI",
       "acceptance": [
         "Enemies spawn and approach player",
         "Automatic attacks kill enemies",
