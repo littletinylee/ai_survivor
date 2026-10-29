@@ -307,11 +307,17 @@ TEST(Cards, DefaultSceneNeverOffersUnsupportedWeapons) {
     UpgradeCardSystem sys(registry, 5);
     EXPECT_EQ(sys.find("weapon_acquire_future_orbit"), nullptr);
     EXPECT_EQ(sys.find("weapon_upgrade_future_orbit"), nullptr);
-    // bubble_shot is already equipped by the session, so no acquire card.
+    // Equipped bubble is filtered; only genuinely implemented, unowned
+    // weapons may be acquired. The registry now has three real attacks.
     ProgressionSession session(fish(), registry, 5);
     for (const CardDefinition *c :
          session.cards().available(session.stats(), session.inventory())) {
-        EXPECT_NE(c->kind, CardKind::kWeaponAcquire);
+        if (c->kind == CardKind::kWeaponAcquire) {
+            const WeaponDefinition *w = registry.find(c->weapon_id);
+            ASSERT_NE(w, nullptr);
+            EXPECT_TRUE(w->implemented);
+            EXPECT_FALSE(session.inventory().has(c->weapon_id));
+        }
     }
 }
 

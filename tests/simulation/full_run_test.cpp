@@ -62,6 +62,7 @@ void expect_invariants(const SimulationResult &r) {
     EXPECT_LE(r.peak_projectiles, ProjectileSystem::kMaxProjectiles);
     EXPECT_LE(r.peak_orbs, ExperienceSystem::kMaxOrbs);
     EXPECT_LE(r.peak_weapons, WeaponInventory::kMaxWeapons);
+    EXPECT_LE(r.peak_zones, AreaSink::kMaxZones);
     EXPECT_LE(r.survival_seconds, GameTimer::kWinDurationSeconds);
     if (r.final_state == GameState::kWon) {
         EXPECT_EQ(r.survival_seconds, GameTimer::kWinDurationSeconds);

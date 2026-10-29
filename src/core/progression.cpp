@@ -17,7 +17,6 @@ double dist_sq(Vec2 a, Vec2 b) {
 }
 
 constexpr double kMaxXpMultiplier = 1000.0;
-constexpr double kBubbleDamagePerLevel = 0.2;
 
 // Cap a stat can reach through cards; the same numbers the combat core clamps
 // to, so an offered card is never a silent no-op.
@@ -210,98 +209,6 @@ bool LevelUpSystem::consume_pending() {
     }
     --pending_;
     return true;
-}
-
-// ---------------------------------------------------------- WeaponRegistry
-
-std::string WeaponRegistry::add(const WeaponDefinition &w) {
-    if (!is_valid_identifier(w.id)) {
-        return "invalid weapon id";
-    }
-    if (w.name.empty()) {
-        return "empty weapon name";
-    }
-    if (w.max_level < 1 || w.max_level > kMaxWeaponLevel) {
-        return "weapon max_level out of range";
-    }
-    if (!std::isfinite(w.damage_per_level) || w.damage_per_level < 0.0 ||
-        w.damage_per_level > 10.0) {
-        return "weapon damage_per_level out of range";
-    }
-    if (find(w.id) != nullptr) {
-        return "duplicate weapon id: " + w.id;
-    }
-    weapons_.push_back(w);
-    return std::string();
-}
-
-const WeaponDefinition *WeaponRegistry::find(const std::string &id) const {
-    for (const WeaponDefinition &w : weapons_) {
-        if (w.id == id) {
-            return &w;
-        }
-    }
-    return nullptr;
-}
-
-WeaponRegistry WeaponRegistry::make_default() {
-    WeaponRegistry r;
-    WeaponDefinition bubble;
-    bubble.id = "bubble_shot";
-    bubble.name = "泡泡弹";
-    bubble.description = "自动向最近的敌人发射泡泡";
-    bubble.max_level = 8;
-    bubble.implemented = true;
-    bubble.damage_per_level = kBubbleDamagePerLevel;
-    r.add(bubble);
-    return r;
-}
-
-// --------------------------------------------------------- WeaponInventory
-
-bool WeaponInventory::add(const std::string &id, int level, int max_level) {
-    if (!is_valid_identifier(id) || max_level < 1 ||
-        max_level > WeaponRegistry::kMaxWeaponLevel || level < 1 ||
-        level > max_level || has(id) || full()) {
-        return false;
-    }
-    entries_.push_back(Entry{id, level, max_level});
-    return true;
-}
-
-bool WeaponInventory::has(const std::string &id) const {
-    return level(id) > 0;
-}
-
-int WeaponInventory::level(const std::string &id) const {
-    for (const Entry &e : entries_) {
-        if (e.id == id) {
-            return e.level;
-        }
-    }
-    return 0;
-}
-
-bool WeaponInventory::can_upgrade(const std::string &id) const {
-    for (const Entry &e : entries_) {
-        if (e.id == id) {
-            return e.level < e.max_level;
-        }
-    }
-    return false;
-}
-
-bool WeaponInventory::upgrade(const std::string &id) {
-    for (Entry &e : entries_) {
-        if (e.id == id) {
-            if (e.level >= e.max_level) {
-                return false;
-            }
-            ++e.level;
-            return true;
-        }
-    }
-    return false;
 }
 
 // ------------------------------------------------------ UpgradeCardSystem
@@ -590,6 +497,11 @@ ChooseResult ProgressionSession::choose(std::uint64_t generation,
         levels_.consume_pending();
     }
     return r;
+}
+
+std::string ProgressionSession::compile_loadout(
+    std::vector<WeaponSpec> &out) const {
+    return ai_survivors::compile_loadout(weapons_, inventory_, out);
 }
 
 double ProgressionSession::weapon_damage_scale() const {

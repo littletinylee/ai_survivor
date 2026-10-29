@@ -27,3 +27,5 @@ WindowsCI编译器库存实际证据run40767419942：14.29.30133、14.44.35207�
 2026-10-29 P1-03：Sonnet实现经验掉落/拾取、连续升级队列、带权不放回三选一卡片、等级/稀有度/条件、六武器库存上限和泡泡弹升级。Codex审查修复有限大权重求和溢出偏置、初始运行属性与战斗限值不同导致无效奖励的问题，补回归测试。Windows本地编译、80项GoogleTest、原生Headless及2个全新冷启动目录均通过。build/upgrade00000002.png已检查：3张独立可读卡片，等级3且剩余2次选择，世界和计时冻结。原生集成实际拾取经验进入升级、拒绝旧generation、应用属性并恢复、重开清零。当前只实现泡泡弹攻击，未实现的新武器不会被卡池提供；其他攻击类型留待扩展。
 
 2026-10-29 P1-04：Sonnet实现实际游戏/模拟共用advance_run与choose_run_upgrade，Haiku实现原生--simulate-run、真实JSON角色报告及PowerShell入口。Codex审查修复脚本变量冒号解析、最大HP报告和终局/无效选择验收。Windows构建、87项GoogleTest、原生Headless、2个全新目录冷启动通过。真实鱼seed1 kite Lost35.766667382秒/23杀/4卡，seed2 kite Lost47.216667611秒/28杀/4卡，seed2 stationary Lost26.133333856秒/16杀/2卡；seed1重跑报告完全一致。六项非法参数退出1，RequireVictory拒绝Lost。受控高HP夹具实际完整1200秒胜利只证明流程；正常角色平衡仍开放。WindowsCI待确认。
+
+2026-10-29 P2-01：Sonnet实现独立weapon模块、通用Projectile/Burst/Zone、完整装备同步、卡片与区域视觉；本次调用达到1USD列表估价上限后停止，未重复调用。Codex实际构建并发现旧卡片测试仍假设单武器，按真实实现更新过滤断言，补最大等级伤害边界、zone击退、装备栏、原生真实卡片获取/伤害/升级/区域测试与升级实际伤害/六武器区域容量回归。最终Windows构建、100项GoogleTest、原生Headless和2冷启动通过。截图build/weapons00000002.png已检查。真实鱼seed1 kite Lost150.533336344秒/148杀/15卡/最多3武器，seed2 stationary Lost25.133333836秒；20分钟平衡仍开放。云端CI待确认。

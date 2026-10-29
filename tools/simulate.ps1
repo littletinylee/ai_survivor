@@ -53,7 +53,7 @@ $report = $reports[0].Groups[1].Value | ConvertFrom-Json
 
 $required = @('requested_seed', 'character_id', 'policy', 'normal_character', 'final_state',
     'survival_seconds', 'hp', 'maxhp', 'kills', 'level', 'xp', 'cards', 'invalid_selections',
-    'peak_pending_levels', 'peak_enemies', 'peak_projectiles', 'peak_orbs', 'peak_weapons',
+    'peak_pending_levels', 'peak_enemies', 'peak_projectiles', 'peak_orbs', 'peak_weapons', 'peak_zones',
     'frames', 'trace_hash', 'error', 'iteration_limit', 'stalled', 'frozen_violations',
     'terminal_violations')
 foreach ($field in $required) {
@@ -76,7 +76,7 @@ if ($report.survival_seconds -lt 0 -or $report.survival_seconds -gt 1200 -or
 }
 if ($report.frozen_violations -ne 0 -or $report.terminal_violations -ne 0) { throw "${name}: state invariant violated" }
 if ($report.peak_enemies -gt 256 -or $report.peak_projectiles -gt 512 -or
-    $report.peak_orbs -gt 512 -or $report.peak_weapons -gt 6) {
+    $report.peak_orbs -gt 512 -or $report.peak_weapons -gt 6 -or $report.peak_zones -gt 32) {
     throw "${name}: peak metrics exceed caps"
 }
 if ($RequireVictory -and $report.final_state -ne 'Won') {

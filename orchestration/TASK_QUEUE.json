@@ -54,7 +54,7 @@
     {
       "id": "P2-01",
       "title": "Three real weapon attack types and equipment integration",
-      "status": "IN_PROGRESS",
+      "status": "IN_REVIEW",
       "acceptance": [
         "Projectile, nearby area and periodic area attacks actually deal damage",
         "Acquisition and upgrades affect combat; six unique slots maximum",

@@ -60,7 +60,9 @@ Godot --headless --path <项目目录> -- --simulate-run --seed 42 --policy kite
 | `hp` / `maxhp` | 结束时生命值 / 最大生命值 |
 | `kills` / `level` / `xp` / `cards` | 击杀数、等级、累计经验、选择的卡牌数 |
 | `invalid_selections` / `peak_pending_levels` | 无效选择次数 / 待处理升级峰值 |
-| `peak_enemies` / `peak_projectiles` / `peak_orbs` / `peak_weapons` | 各项峰值数量 |
+| `peak_enemies` / `peak_projectiles` / `peak_orbs` / `peak_weapons` / `peak_zones` | 各项峰值数量（区域上限 32） |
+
+> 注意：P2-01 起默认注册表含 bubble_shot、tail_sweep、data_pool，模拟轨迹哈希已变化；本文件中此前记录的实测基线均为历史数据（仅泡泡弹），不代表当前平衡，也不表示默认鱼的平衡已解决。
 | `frames` | 推进的 Playing 帧数 |
 | `trace_hash` | 16 位十六进制字符串（FNV-1a，每帧定点采样）；用字符串是为避免 uint64 在 JSON 中丢精度 |
 | `error` | 非空表示模拟未能开始 |
@@ -87,7 +89,7 @@ Godot --headless --path <项目目录> -- --simulate-run --seed 42 --policy kite
 
 它**只证明胜利流程（时间、状态迁移、终局判定）能够走通**，不代表默认角色的平衡数值，也不应用于宣传或平衡评估。普通 CLI 模拟始终加载 `data/characters` 中的真实数据。
 
-## 2026-10-29 Windows 实测基线
+## 2026-10-29 PR #3 的历史基线（单武器）
 
 以下均为实际 JSON 角色，无数值覆盖。当前策略简单，结果只反映该自动策略，不能推断真人最佳表现。
 
@@ -98,3 +100,14 @@ Godot --headless --path <项目目录> -- --simulate-run --seed 42 --policy kite
 | 2 | stationary | Lost | 26.133333856 | 16 | 3 | 2 | 93ab356bedda63cb |
 
 seed 1 重复运行报告完全一致。六项非法参数检查均退出 1；`-RequireVictory` 正确拒绝 Lost。普通鱼的 20 分钟可玩性仍待平衡工作，CI 当前只检验流程及不变量。
+
+## P2-01 三种武器后的实测
+
+默认鱼仍只携带泡泡弹开始，其余武器由真实卡片获得。
+
+| seed | 策略 | 结果 | 生存秒数 | 击杀 | 等级 | 卡片 | 武器峰值 | 区域峰值 | trace_hash |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | kite | Lost | 150.533336344 | 148 | 16 | 15 | 3 | 1 | 3d1a0045941d0e1a |
+| 2 | stationary | Lost | 25.133333836 | 16 | 3 | 2 | 1 | 0 | 184747d172b838a9 |
+
+仍无普通角色 20 分钟胜利证据。哈希新增区域数量采样，不能与旧版哈希直接比较；同版本固定种子重复一致性由单测验证。

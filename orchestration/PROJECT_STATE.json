@@ -16,10 +16,10 @@
   ],
   "unverified": [
     "complete_run_balance",
-    "three_weapon_types"
+    "P2-01_Windows_CI"
   ],
-  "next": "P2-01 Claude Sonnet: real projectile, close burst and periodic area weapons connected to cards and shared runtime",
-  "reason": "PR3 merged ae4d797 after Windows push40827013310 and PR40827037746 both success on8c9cad5",
-  "tests": "87 GoogleTest + Headless + 2 fresh cold starts + real-character simulations passed locally and Windows CI",
+  "next": "P2-01 PR and exact-head Windows CI; then P2-02 enemy variety and normal-character balance",
+  "reason": "Sonnet task reached per-call list-estimate budget, stopped; Codex completed local review/fixes/testing without retrying the paid call",
+  "tests": "100 GoogleTest + native actual acquisition/area damage/upgrade checks + 2 fresh cold starts PASS; normal JSON seed1 kite Lost150.53s/148kills, visual screenshot inspected",
   "workspace": "E:/AI Survior/ai_survivor"
 }
