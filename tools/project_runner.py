@@ -68,9 +68,22 @@ def single_instance(lock_path):
         f.close()
 
 
+def unattended_disabled(root):
+    try:
+        policy = json.loads((Path(root) / "orchestration/BUDGET_POLICY.json").read_text("utf-8"))
+        return policy.get("unattended_enabled", True) is not True
+    except (OSError, ValueError, TypeError, AttributeError):
+        return False  # malformed/missing policy is rejected by budget_ok
+
+
 def budget_ok(root):
     try:
-        cap = json.loads((Path(root) / "orchestration/BUDGET_POLICY.json").read_text("utf-8"))["subrouter_server_limit"]
+        policy = json.loads((Path(root) / "orchestration/BUDGET_POLICY.json").read_text("utf-8"))
+        if not isinstance(policy, dict):
+            return False
+        if policy.get("unattended_enabled", True) is not True:
+            return False
+        cap = policy["subrouter_server_limit"]
         v = cap["daily_cny"]
         return (cap["confirmed_by"] == "user" and isinstance(v, (int, float))
                 and not isinstance(v, bool) and 0 < v <= 100)
@@ -318,6 +331,9 @@ def run(args, root=ROOT):
             missing = [r for r in REQUIRED if not (root / r).is_file()]
             if missing:
                 save(phase="stopped", reason="missing_files: " + ", ".join(missing))
+                return 2
+            if unattended_disabled(root):
+                save(phase="stopped", reason="unattended_disabled")
                 return 2
             if not budget_ok(root):
                 save(phase="stopped", reason="budget_gate_failed")

@@ -33,6 +33,8 @@
 
 ## 失败与记录
 
+- `BUDGET_POLICY.unattended_enabled=false`：启动即停止，原因`unattended_disabled`，不运行控制器/开发者。账号验证阻塞时保持该开关关闭；这不代表每日金额已用完。非法预算文档仍由预算门禁拒绝。
+
 - 请求非法或 id 重复：停止，原因为 `job_request_invalid: <reason>`，开发者不运行。
 - 开发者非零退出、超时或 STOP：停止，不重试。
 - 记录写在 `orchestration/local/runner/jobs/` 下：`<id>.request.json`（已验证的请求）和 `<id>.result.json`（状态）。

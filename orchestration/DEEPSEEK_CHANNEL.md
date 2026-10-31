@@ -1,5 +1,13 @@
 # DeepSeek fallback channel
 
+## 2026-11-01 current handoff
+
+Claude official returned403 verification_required before edits. Its call was stopped and not retried through another Claude provider. The already-approved pickup-aware task was handed once to DeepSeek Harness in a supervised600s file-only call; CLI exit0 and only read/grep/edit tools observed. Requested model deepseek-flash; runtime events did not independently report a model ID. No user settings or security changes were made.
+
+Candidate172 tests/native2cold passed but ten-seed acceptance failed (median596.29s,4/10 non-regressed). Patch and reports are preserved ignored locally, gameplay changes removed. Baseline168 tests/native2cold restored. No further paid task or unattended batch is being started; cost unknown. Claude account verification is pending, while DeepSeek file-edit capability itself worked. Historical note below remains a record of the original task, not the current edit scope.
+
+## Historical bootstrap handoff
+
 Date: 2026-10-29. Workspace: `E:/AI Survior/ai_survivor`. Branch: `feat/phase0-bootstrap`.
 
 ## Model routing (actual)

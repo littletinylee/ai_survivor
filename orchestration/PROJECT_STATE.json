@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "phase": 3,
-  "status": "IN_PROGRESS",
-  "date": "2026-10-31",
-  "branch": "codex/pickup-aware-bot",
+  "status": "WAITING_USER",
+  "date": "2026-11-01",
+  "branch": "codex/auth-block-runner-guard",
   "remote": "git@github.com:littletinylee/ai_survivor.git",
   "completed": [
     "environment_probe",
@@ -22,12 +22,12 @@
     "normal_character_1200_second_balance",
     "walk_animation",
     "additional_characters",
-    "pickup_aware_candidate",
-    "pickup_aware_ten_seed_acceptance"
+    "unattended_process_lifetime",
+    "claude_account_verification"
   ],
-  "next": "Controlled2cycle recovery only: first enqueue pickup-aware-xp-v1 / orchestration/P2-02-pickup-aware-task.md / Haiku0.3 auto; second review standard3reports and exit with ten-seed acceptance PENDING for desktop host.",
-  "reason": "PR9 exacta7939f6 passed push41159890215 andPR41159952667 WindowsCI; reviewed and merged10155b660611bbcc342659cfb0fd320ccc2e724d. Timeout recovery changes summary context and explicit bounded decisions; no identical restart. One approved gameplay experiment based on ten-seed evidence.",
-  "tests": "2026-10-31 host168/168 GoogleTest, nativeHeadless and2freshcold PASS; runner24 cases23PASS1Windows symlink privilege skip; provider12 checks and mock handoff PASS. Ten real JSON kite seeds all Lost543.85..649.62, median614.85; stationary25.133333836. Three baseline hashes unchanged.",
+  "next": "User must complete Claude official account verification or explicitly change long-run routing/budget policy. Do not automatically retry Claude or start new paid/unattended batches. Current fallback task finished and rejected; preserve checkpoint. After user confirmation, one bounded availability check and a new evidence-based plan.",
+  "reason": "Claude403 verification_required confirmed; unattended_enabled=false plus mechanical startup gate. DeepSeek supervised fallback worked but pickup-aware cohort failed predefined acceptance and was removed. Runner8636 abrupt startup loss cause remains unproven; not blindly restarted.",
+  "tests": "Restored host168/168 GoogleTest/nativeHeadless2freshcold PASS;10/10 baseline times/hashes exactly restored, stationary25.133333836/hash184747d172b838a9. Runner25cases24PASS1Windows symlink skip; provider12checks+mock PASS. Rejected candidate172tests passed but median596.29<614.85 and4/10 non-regressed.",
   "workspace": "E:/AI Survior/ai_survivor",
   "cost": "unknown"
 }
