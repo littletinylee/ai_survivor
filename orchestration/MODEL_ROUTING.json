@@ -3,8 +3,8 @@
   "primary": {
     "provider": "Claude Code",
     "requested_model": "claude-haiku-5-5 / claude-sonnet-5-5",
-    "status": "READY",
-    "reason": "Official claude.ai Pro OAuth verified. Haiku real file-edit task and Sonnet probe succeeded. Use --setting-sources project to exclude global OpenRouter overrides.",
+    "status": "AUTH_VERIFICATION_REQUIRED",
+    "reason": "2026-11-01 official403 verification_required; no edits, no retry or provider switch within Claude. User must complete official verification.",
     "launcher": "tools/claude-task.ps1",
     "tasks": {
       "simple": "haiku",
@@ -15,8 +15,8 @@
   "fallback": {
     "provider": "DeepSeek Harness",
     "model": "deepseek-flash",
-    "probe": "READY",
-    "implementation": "FILE_ONLY_VERIFIED: real patch completed, CLI exit 0, Windows 21 tests and Headless PASS"
+    "probe": "FILE_ONLY_SUPERVISED_VERIFIED",
+    "implementation": "2026-11-01 CLI exit0, read/grep/edit only. Requested deepseek-flash; actual model ID not independently emitted. Candidate172tests/native2cold PASS but cohort failed and code restored; no automatic new batch."
   },
   "subrouter": {
     "retries": 1,

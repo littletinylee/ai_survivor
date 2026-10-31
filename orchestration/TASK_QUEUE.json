@@ -72,7 +72,7 @@
         "Demonstrate normal-character 1200-second victory without fixture overrides; retain stationary/death baseline",
         "Record policy limitations, no false claim about human play quality"
       ],
-      "checkpoint": "HealthMetrics/timeline/parser and diagnostics completed; reviewed168 tests/native2cold, ten real JSON seeds0/10 wins, median614.85s; normal1200s still unverified. Runner cycle5 controller timeout diagnosed, no blind restart. Next approved single pickup-boundary/threat-aware XP approach experiment; desktop ten-seed acceptance required before accepting candidate."
+      "checkpoint": "pickup-aware experiment rejected after supervised DeepSeek implementation:172tests/native2cold pass but median596.29 vs614.85 and4/10 non-regressed. Patch/results archived, code removed;168tests/native2cold and10exact baseline hashes restored. No1200s normal win. Claude official403 verification_required; unattended stopped pending user verification/routing, no automatic retry."
     },
     {
       "id": "P3-01",

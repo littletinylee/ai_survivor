@@ -72,7 +72,7 @@ class RunnerTests(unittest.TestCase):
             self.addCleanup(p.stop)
 
     def test_budget_gate(self):
-        for b in ({}, {"subrouter_server_limit": {"confirmed_by": "user"}},
+        for b in ({}, [], None, "invalid", {"subrouter_server_limit": {"confirmed_by": "user"}},
                   {"subrouter_server_limit": {"confirmed_by": "user", "daily_cny": 101}},
                   {"subrouter_server_limit": {"confirmed_by": "user", "daily_cny": 0}},
                   {"subrouter_server_limit": {"confirmed_by": "codex", "daily_cny": 50}}):
@@ -83,6 +83,13 @@ class RunnerTests(unittest.TestCase):
                 rb.assert_not_called()
             self.assertEqual(state(root)["reason"], "budget_gate_failed")
         self.assertTrue(pr.budget_ok(make_root(self.tmp.name)))
+
+    def test_disabled_unattended_policy_starts_nothing(self):
+        root = make_root(self.tmp.name, {**GOOD_BUDGET, "unattended_enabled": False})
+        with mock.patch.object(pr, "run_bounded") as rb:
+            self.assertEqual(pr.run(args(), root), 2)
+        rb.assert_not_called()
+        self.assertEqual(state(root)["reason"], "unattended_disabled")
 
     def test_done_queue_starts_nothing(self):
         root = make_root(self.tmp.name, queue={"tasks": [{"status": "DONE"}, {"status": "COMPLETE"}]})
