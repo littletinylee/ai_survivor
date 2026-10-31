@@ -306,6 +306,25 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(pr.main(["validation"]), 0)
         self.assertFalse(json.loads(out.getvalue())["current_source_matches"])
 
+    def test_controller_summary_preserves_evidence_without_large_timeline(self):
+        report = {"current_source_matches": True, "record": {
+            "status": "passed", "unit_xml": {"tests": 168, "failures": 0},
+            "simulation_reports": {"simulation_1_kite": {
+                "requested_seed": 1, "policy": "kite", "final_state": "Lost",
+                "survival_seconds": 613.0, "trace_hash": "c3dcdf2b24529355",
+                "timeline": [{"time": i} for i in range(22)]}}}}
+        compact = pr.compact_validation_report(report)
+        self.assertTrue(compact["current_source_matches"])
+        self.assertEqual(compact["record"]["unit_xml"]["tests"], 168)
+        sample = compact["record"]["simulation_reports"]["simulation_1_kite"]
+        self.assertEqual((sample["final_state"], sample["survival_seconds"]), ("Lost", 613.0))
+        self.assertNotIn("timeline", sample)
+        self.assertEqual(len(report["record"]["simulation_reports"]["simulation_1_kite"]["timeline"]), 22)
+
+    def test_controller_summary_keeps_missing_validation_unknown(self):
+        missing = {"record": None, "current_source_matches": False, "error": "unreadable"}
+        self.assertEqual(pr.compact_validation_report(missing), missing)
+
     def test_failed_build_and_test_record_failed(self):
         root = job_root(self.tmp.name)
         xml = root / "build/test-results/unit.xml"

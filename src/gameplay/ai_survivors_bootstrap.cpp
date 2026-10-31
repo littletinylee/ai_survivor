@@ -22,6 +22,7 @@
 #include <godot_cpp/classes/v_box_container.hpp>
 #include <godot_cpp/core/memory.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
+#include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/color.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
@@ -33,6 +34,7 @@
 #include "core/game_state.h"
 #include "core/game_timer.h"
 #include "core/run_simulation.h"
+#include "core/simulation_request.h"
 
 namespace ai_survivors {
 
@@ -164,116 +166,46 @@ bool has_pixels(const godot::Ref<godot::Texture2D> &texture) {
            texture->get_height() > 0;
 }
 
-// --simulate-run options; defaults match tools/simulate.ps1.
-struct SimulationRequest {
-    bool requested = false;
-    std::uint64_t seed = 1;
-    SimulationPolicy policy = SimulationPolicy::kKiteAndCollect;
-    std::string character_id = "deepseek_big_fish";
-};
-
-// Accepts only plain decimal digits in the unsigned 32-bit range.
-bool parse_seed(const std::string &text, std::uint64_t &seed) {
-    if (text.empty() || text.size() > 10) {
-        return false;
+// Per-kind values follow EnemyKind order: chaser, charger, brute.
+godot::Array sample_to_godot_by_kind_hits(const HealthMetrics &h) {
+    godot::Array a;
+    for (const std::uint32_t v : h.contact_hits_by_kind) {
+        a.push_back(static_cast<int64_t>(v));
     }
-    std::uint64_t value = 0;
-    for (const char c : text) {
-        if (c < '0' || c > '9') {
-            return false;
-        }
-        value = value * 10 + static_cast<std::uint64_t>(c - '0');
-    }
-    if (value > 0xFFFFFFFFULL) {
-        return false;
-    }
-    seed = value;
-    return true;
+    return a;
 }
 
-// Unknown user args are errors only in simulation mode, so normal game and
-// test args are never rejected here.
-bool parse_simulation_args(const PackedStringArray &args,
-                           SimulationRequest &request, std::string &err) {
-    bool simulate = false;
-    bool game_flag = false;
-    std::string unknown_arg;
-    std::vector<std::string> seen;
-    for (int64_t i = 0; i < args.size(); ++i) {
-        const std::string arg = to_std(args[i]);
-        const bool is_option = arg == "--simulate-run" || arg == "--seed" ||
-                               arg == "--policy" || arg == "--character";
-        if (is_option) {
-            if (std::find(seen.begin(), seen.end(), arg) != seen.end()) {
-                err = "duplicate " + arg;
-                return false;
-            }
-            seen.push_back(arg);
-        }
-        if (arg == "--simulate-run") {
-            simulate = true;
-        } else if (arg == "--seed" || arg == "--policy" || arg == "--character") {
-            // A following "--..." token is a missing value, not a value.
-            const bool has_value = i + 1 < args.size() &&
-                                   to_std(args[i + 1]).rfind("--", 0) != 0;
-            if (!has_value) {
-                err = arg + " requires a value";
-                return false;
-            }
-            const std::string value = to_std(args[++i]);
-            if (arg == "--seed") {
-                if (!parse_seed(value, request.seed)) {
-                    err = "invalid --seed (expected 0..4294967295): " + value;
-                    return false;
-                }
-            } else if (arg == "--policy") {
-                if (value == "kite") {
-                    request.policy = SimulationPolicy::kKiteAndCollect;
-                } else if (value == "stationary") {
-                    request.policy = SimulationPolicy::kStationary;
-                } else {
-                    err = "invalid --policy (kite|stationary): " + value;
-                    return false;
-                }
-            } else {
-                if (value.empty()) {
-                    err = "invalid --character: empty id";
-                    return false;
-                }
-                request.character_id = value;
-            }
-        } else if (arg == "--integration-test" || arg.rfind("--visual-", 0) == 0) {
-            game_flag = true;
-        } else if (unknown_arg.empty()) {
-            unknown_arg = arg;
-        }
+godot::Array sample_to_godot_by_kind_damage(const HealthMetrics &h) {
+    godot::Array a;
+    for (const double v : h.contact_damage_by_kind) {
+        a.push_back(v);
     }
-
-    const bool value_option_seen =
-        std::find(seen.begin(), seen.end(), "--seed") != seen.end() ||
-        std::find(seen.begin(), seen.end(), "--policy") != seen.end() ||
-        std::find(seen.begin(), seen.end(), "--character") != seen.end();
-    if (!simulate) {
-        if (value_option_seen) {
-            err = "--seed, --policy and --character require --simulate-run";
-            return false;
-        }
-        return true;
-    }
-    if (!unknown_arg.empty()) {
-        err = "unknown argument with --simulate-run: " + unknown_arg;
-        return false;
-    }
-    if (game_flag) {
-        err = "--simulate-run cannot be combined with --integration-test or --visual-*";
-        return false;
-    }
-    request.requested = true;
-    return true;
+    return a;
 }
 
-const char *policy_name(SimulationPolicy policy) {
-    return policy == SimulationPolicy::kStationary ? "stationary" : "kite";
+godot::Array timeline_to_godot(const std::vector<SimulationSample> &samples) {
+    godot::Array timeline;
+    for (const SimulationSample &s : samples) {
+        Dictionary d;
+        d["time"] = s.time;
+        d["hp"] = s.hp;
+        d["maxhp"] = s.max_hp;
+        d["armor"] = s.armor;
+        d["level"] = s.level;
+        d["cards"] = s.cards;
+        d["kills"] = static_cast<int64_t>(s.kills);
+        d["xp"] = s.xp_gained;
+        d["passive_progress"] = s.passive_progress;
+        d["passive_procs"] = static_cast<int64_t>(s.passive_procs);
+        d["damage_taken"] = s.health.damage_taken;
+        d["healing_received"] = s.health.healing_received;
+        d["max_hp_gain"] = s.health.max_hp_gain;
+        d["contact_hits"] = static_cast<int64_t>(s.health.contact_hits);
+        d["contact_hits_by_kind"] = sample_to_godot_by_kind_hits(s.health);
+        d["contact_damage_by_kind"] = sample_to_godot_by_kind_damage(s.health);
+        timeline.push_back(d);
+    }
+    return timeline;
 }
 
 // A Lost run is a legitimate result. Only structural and invariant failures
@@ -315,7 +247,7 @@ int run_simulation_report(const CharacterRegistry &registry,
     Dictionary report;
     report["requested_seed"] = static_cast<int64_t>(request.seed);
     report["character_id"] = to_godot(character->id);
-    report["policy"] = to_godot(policy_name(request.policy));
+    report["policy"] = to_godot(simulation_policy_name(request.policy));
     report["normal_character"] = true;
     report["final_state"] = to_godot(to_string(r.final_state));
     report["survival_seconds"] = r.survival_seconds;
@@ -339,6 +271,10 @@ int run_simulation_report(const CharacterRegistry &registry,
     report["stalled"] = r.stalled;
     report["frozen_violations"] = r.frozen_violations;
     report["terminal_violations"] = r.terminal_violations;
+    report["hp_offers_seen"] = r.hp_offers_seen;
+    report["hp_cards_selected"] = r.hp_cards_selected;
+    report["hp_offers_declined_healthy"] = r.hp_offers_declined_healthy;
+    report["timeline"] = timeline_to_godot(r.samples);
 
     godot::UtilityFunctions::print(
         String("AI_SURVIVORS_SIMULATION_REPORT ") + godot::JSON::stringify(report));
@@ -1477,7 +1413,12 @@ void AISurvivorsBootstrap::_ready() {
     // character data loaded above and quits with the report's exit code.
     SimulationRequest simulation;
     std::string simulation_error;
-    if (!parse_simulation_args(args, simulation, simulation_error)) {
+    std::vector<std::string> user_args;
+    user_args.reserve(static_cast<std::size_t>(args.size()));
+    for (int64_t i = 0; i < args.size(); ++i) {
+        user_args.push_back(to_std(args[i]));
+    }
+    if (!parse_simulation_args(user_args, simulation, simulation_error)) {
         godot::UtilityFunctions::push_error(
             to_godot("argument error: " + simulation_error));
         get_tree()->quit(1);

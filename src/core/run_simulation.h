@@ -59,10 +59,29 @@ private:
     int frames_left_ = 0;
 };
 
+// One diagnostic snapshot of a run. Read-only observation: taking a sample uses
+// no RNG and mutates nothing, and samples never feed trace_hash.
+struct SimulationSample {
+    double time = 0.0;          // GameTimer seconds (equals combat time while Playing)
+    double hp = 0.0;
+    double max_hp = 0.0;
+    double armor = 0.0;
+    int level = 1;
+    int cards = 0;              // cards picked so far
+    std::uint32_t kills = 0;
+    double xp_gained = 0.0;     // total XP banked so far, incl. spent levels
+    double passive_progress = 0.0;
+    std::uint32_t passive_procs = 0;
+    HealthMetrics health;       // cumulative; by-kind arrays follow EnemyKind
+};
+
 // Outcome of one deterministic headless run. Nothing here is forced: the
 // terminal state is whatever advance_run produced.
 struct SimulationResult {
     static constexpr std::uint64_t kMaxIterations = 100000;
+    // Timeline: start, one per kSampleIntervalSeconds, and the terminal sample.
+    static constexpr double kSampleIntervalSeconds = 60.0;
+    static constexpr std::size_t kMaxSamples = 22;
     static constexpr double kStepSeconds = 1.0 / 60.0;
 
     std::string error; // non-empty: the run never started
@@ -83,6 +102,19 @@ struct SimulationResult {
     int cards_picked = 0;
     int invalid_selections = 0;
     int peak_pending_levels = 0;
+
+    // Derived only from real offers and accepted choices. "Healthy" means HP
+    // fraction >= the bot's injured threshold at the time of the offer.
+    int hp_offers_seen = 0;             // offers containing a max-HP card
+    int hp_cards_selected = 0;          // accepted max-HP cards
+    int hp_offers_declined_healthy = 0; // HP offered, other card taken, healthy
+
+    std::vector<SimulationSample> samples; // at most kMaxSamples
+
+    // Called in nondecreasing game-clock order. A lethal frame does not advance
+    // that clock: replace a sample at the same time with the terminal state.
+    // Retain the latest sample even if the diagnostic capacity is reached.
+    void record_sample(const SimulationSample &sample);
 
     std::size_t peak_enemies = 0;
     std::size_t peak_projectiles = 0;

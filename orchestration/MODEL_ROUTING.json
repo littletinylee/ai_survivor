@@ -49,5 +49,12 @@
     "status": "ChatGPT idle PNG integrated and locally verified; walk atlas drafts not accepted; first-frame source/prompt recorded"
   },
   "controller_provider": "subrouter",
-  "controller_launch": "python tools/project_runner.py run --provider subrouter --simulations --max-cycles 6 --cycle-timeout 900 --total-hours 4"
+  "controller_launch": "python tools/project_runner.py run --provider subrouter --simulations --max-cycles 6 --cycle-timeout 900 --total-hours 4",
+  "controller_timeout": {
+    "cycle": 5,
+    "count": 1,
+    "mitigation": "compact validation summary plus explicit next task and bounded read rounds; upstream cause unproven; controlled recovery only",
+    "auth_or_budget_rejection_observed": false,
+    "runner_pid": 10736
+  }
 }

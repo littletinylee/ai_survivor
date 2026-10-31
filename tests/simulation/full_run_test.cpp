@@ -73,6 +73,73 @@ void expect_invariants(const SimulationResult &r) {
     }
 }
 
+// Timeline invariants: bounded, finite, monotone, and the last sample is the
+// terminal state. Structure only; says nothing about balance.
+void expect_timeline(const SimulationResult &r) {
+    ASSERT_GE(r.samples.size(), 2u);
+    ASSERT_LE(r.samples.size(), SimulationResult::kMaxSamples);
+    EXPECT_EQ(r.samples.front().time, 0.0);
+    EXPECT_EQ(r.samples.front().kills, 0u);
+    EXPECT_EQ(r.samples.front().health.damage_taken, 0.0);
+    for (std::size_t i = 0; i < r.samples.size(); ++i) {
+        const SimulationSample &s = r.samples[i];
+        for (const double v : {s.time, s.hp, s.max_hp, s.armor, s.xp_gained,
+                               s.passive_progress, s.health.damage_taken,
+                               s.health.healing_received, s.health.max_hp_gain}) {
+            EXPECT_TRUE(std::isfinite(v));
+            EXPECT_GE(v, 0.0);
+        }
+        for (const double v : s.health.contact_damage_by_kind) {
+            EXPECT_TRUE(std::isfinite(v));
+            EXPECT_GE(v, 0.0);
+        }
+        EXPECT_LE(s.hp, s.max_hp);
+        std::uint32_t hits = 0;
+        double kind_damage = 0.0;
+        for (const std::uint32_t h : s.health.contact_hits_by_kind) {
+            hits += h;
+        }
+        for (const double d : s.health.contact_damage_by_kind) {
+            kind_damage += d;
+        }
+        EXPECT_EQ(hits, s.health.contact_hits);
+        EXPECT_LE(kind_damage, s.health.damage_taken + 1e-6);
+        if (i == 0) {
+            continue;
+        }
+        const SimulationSample &p = r.samples[i - 1];
+        EXPECT_GT(s.time, p.time) << "sample " << i;
+        EXPECT_GE(s.kills, p.kills);
+        EXPECT_GE(s.level, p.level);
+        EXPECT_GE(s.cards, p.cards);
+        EXPECT_GE(s.xp_gained, p.xp_gained);
+        EXPECT_GE(s.passive_procs, p.passive_procs);
+        EXPECT_GE(s.health.damage_taken, p.health.damage_taken);
+        EXPECT_GE(s.health.healing_received, p.health.healing_received);
+        EXPECT_GE(s.health.max_hp_gain, p.health.max_hp_gain);
+        EXPECT_GE(s.health.contact_hits, p.health.contact_hits);
+        for (std::size_t k = 0; k < HealthMetrics::kKindCount; ++k) {
+            EXPECT_GE(s.health.contact_hits_by_kind[k],
+                      p.health.contact_hits_by_kind[k]);
+            EXPECT_GE(s.health.contact_damage_by_kind[k],
+                      p.health.contact_damage_by_kind[k]);
+        }
+    }
+    const SimulationSample &last = r.samples.back();
+    EXPECT_EQ(last.time, r.survival_seconds);
+    EXPECT_EQ(last.hp, r.final_hp);
+    EXPECT_EQ(last.max_hp, r.max_hp);
+    EXPECT_EQ(last.level, r.final_level);
+    EXPECT_EQ(last.cards, r.cards_picked);
+    EXPECT_EQ(last.kills, r.kills);
+    EXPECT_EQ(last.xp_gained, r.xp_gained);
+    // HP offer totals come from real offers and accepted choices only.
+    EXPECT_GE(r.hp_offers_seen, r.hp_cards_selected);
+    EXPECT_GE(r.hp_offers_seen, r.hp_offers_declined_healthy);
+    EXPECT_LE(r.hp_cards_selected + r.hp_offers_declined_healthy, r.hp_offers_seen);
+    EXPECT_LE(r.hp_offers_seen, r.upgrade_offers);
+}
+
 // Hand-built run for single-frame behaviour tests (waves off).
 struct Rig {
     GameStateManager states;
@@ -127,6 +194,35 @@ TEST(FullRun, DefaultFishBotIsDeterministicAndConsistent) {
     const SimulationResult s =
         run_simulation(default_fish(), 1, SimulationPolicy::kStationary);
     expect_invariants(s);
+    expect_timeline(s);
+}
+
+TEST(FullRun, TimelineIsBoundedMonotoneAndDeterministic) {
+    for (const std::uint64_t seed : {1ULL, 2ULL}) {
+        const SimulationResult a =
+            run_simulation(default_fish(), seed, SimulationPolicy::kKiteAndCollect);
+        const SimulationResult b =
+            run_simulation(default_fish(), seed, SimulationPolicy::kKiteAndCollect);
+        expect_timeline(a);
+        ASSERT_EQ(a.samples.size(), b.samples.size());
+        for (std::size_t i = 0; i < a.samples.size(); ++i) {
+            EXPECT_EQ(a.samples[i].time, b.samples[i].time);
+            EXPECT_EQ(a.samples[i].hp, b.samples[i].hp);
+            EXPECT_EQ(a.samples[i].health.damage_taken,
+                      b.samples[i].health.damage_taken);
+        }
+        // Periodic samples land at or just after each 60 s mark.
+        for (std::size_t i = 1; i + 1 < a.samples.size(); ++i) {
+            EXPECT_GE(a.samples[i].time, 60.0 * static_cast<double>(i));
+            EXPECT_LT(a.samples[i].time, 60.0 * static_cast<double>(i) + 1.0);
+        }
+    }
+    // A full 1200 s run holds start + 20 marks + terminal at most.
+    const SimulationResult won = run_simulation(
+        controlled_fixture(), 11, SimulationPolicy::kKiteAndCollect);
+    expect_timeline(won);
+    EXPECT_LE(won.samples.size(), SimulationResult::kMaxSamples);
+    EXPECT_GE(won.samples.size(), 21u);
 }
 
 TEST(FullRun, LethalContactLosesThroughSharedHelpers) {
@@ -225,6 +321,36 @@ TEST(FullRun, PauseAndUpgradeFreezeEverything) {
                                  *rig.progression, 1, "attr_armor")
                   .result,
               ChooseResult::kNoOffer);
+}
+
+TEST(FullRun, TerminalSampleReplacesPriorStateAtUnchangedGameTime) {
+    SimulationResult report;
+    SimulationSample sample;
+    sample.hp = sample.max_hp = 100.0;
+    report.record_sample(sample);
+    sample.time = 60.0;
+    sample.hp = 12.0;
+    report.record_sample(sample);
+    // Combat kills the player on the next frame; GameTimer stays at60.
+    sample.hp = 0.0;
+    sample.cards = 7;
+    report.record_sample(sample);
+    ASSERT_EQ(report.samples.size(), 2u);
+    EXPECT_LT(report.samples.front().time, report.samples.back().time);
+    EXPECT_EQ(report.samples.back().hp, 0.0);
+    EXPECT_EQ(report.samples.back().cards, 7);
+}
+
+TEST(FullRun, ImmediateTerminalSampleDoesNotDuplicateTimeZero) {
+    SimulationResult report;
+    SimulationSample sample;
+    sample.hp = sample.max_hp = 100.0;
+    report.record_sample(sample);
+    sample.hp = 0.0;
+    report.record_sample(sample);
+    ASSERT_EQ(report.samples.size(), 1u);
+    EXPECT_EQ(report.samples.back().time, 0.0);
+    EXPECT_EQ(report.samples.back().hp, 0.0);
 }
 
 TEST(FullRun, SameFrameDeathBeatsVictory) {

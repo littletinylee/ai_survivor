@@ -79,9 +79,64 @@ if ($report.peak_enemies -gt 256 -or $report.peak_projectiles -gt 512 -or
     $report.peak_orbs -gt 512 -or $report.peak_weapons -gt 6 -or $report.peak_zones -gt 32) {
     throw "${name}: peak metrics exceed caps"
 }
+
+# Timeline: bounded, finite, monotone, final sample equals terminal metrics.
+foreach ($field in @('hp_offers_seen', 'hp_cards_selected', 'hp_offers_declined_healthy', 'timeline')) {
+    if ($report.PSObject.Properties.Name -notcontains $field) { throw "${name}: report missing $field" }
+}
+$timeline = @($report.timeline)
+if ($timeline.Count -lt 1 -or $timeline.Count -gt 22) { throw "${name}: timeline has $($timeline.Count) samples (expected 1..22; start/terminal may share time0)" }
+if ($report.hp_offers_seen -lt 0 -or $report.hp_cards_selected -lt 0 -or $report.hp_offers_declined_healthy -lt 0 -or
+    ($report.hp_cards_selected + $report.hp_offers_declined_healthy) -gt $report.hp_offers_seen) {
+    throw "${name}: HP offer totals are inconsistent"
+}
+$scalars = @('time', 'hp', 'maxhp', 'armor', 'level', 'cards', 'kills', 'xp', 'passive_progress', 'passive_procs',
+    'damage_taken', 'healing_received', 'max_hp_gain', 'contact_hits')
+$cumulative = @('time', 'level', 'cards', 'kills', 'xp', 'passive_procs', 'damage_taken', 'healing_received',
+    'max_hp_gain', 'contact_hits')
+$previous = $null
+for ($i = 0; $i -lt $timeline.Count; $i++) {
+    $sample = $timeline[$i]
+    foreach ($field in $scalars) {
+        if ($sample.PSObject.Properties.Name -notcontains $field) { throw "${name}: sample $i missing $field" }
+        $value = [double]$sample.$field
+        if ([double]::IsNaN($value) -or [double]::IsInfinity($value) -or $value -lt 0) {
+            throw "${name}: sample $i has invalid $field=$value"
+        }
+    }
+    foreach ($field in @('contact_hits_by_kind', 'contact_damage_by_kind')) {
+        $kinds = @($sample.$field)
+        if ($kinds.Count -ne 3) { throw "${name}: sample $i $field must have 3 entries" }
+        foreach ($v in $kinds) {
+            if ([double]::IsNaN([double]$v) -or [double]::IsInfinity([double]$v) -or $v -lt 0) { throw "${name}: sample $i invalid $field" }
+        }
+    }
+    if ($sample.hp -gt $sample.maxhp) { throw "${name}: sample $i hp exceeds maxhp" }
+    if ($null -ne $previous) {
+        if ($sample.time -le $previous.time) { throw "${name}: sample $i time is not increasing" }
+        foreach ($field in $cumulative) {
+            if ([double]$sample.$field -lt [double]$previous.$field) { throw "${name}: sample $i $field decreased" }
+        }
+        for ($k = 0; $k -lt 3; $k++) {
+            if ($sample.contact_hits_by_kind[$k] -lt $previous.contact_hits_by_kind[$k] -or
+                $sample.contact_damage_by_kind[$k] -lt $previous.contact_damage_by_kind[$k]) {
+                throw "${name}: sample $i per-kind totals decreased"
+            }
+        }
+    }
+    $previous = $sample
+}
+if ($timeline[0].time -ne 0) { throw "${name}: first sample is not the start" }
+$final = $timeline[$timeline.Count - 1]
+if ($final.time -ne $report.survival_seconds -or $final.hp -ne $report.hp -or $final.maxhp -ne $report.maxhp -or
+    $final.kills -ne $report.kills -or $final.level -ne $report.level -or $final.cards -ne $report.cards -or
+    $final.xp -ne $report.xp) {
+    throw "${name}: final timeline sample does not match terminal report"
+}
+
 if ($RequireVictory -and $report.final_state -ne 'Won') {
     throw "${name}: -RequireVictory set but run ended $($report.final_state)"
 }
 
 Write-Host "Simulation report ($name):"
-$report | ConvertTo-Json -Depth 4
+$report | ConvertTo-Json -Depth 6

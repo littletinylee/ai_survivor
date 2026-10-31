@@ -61,6 +61,8 @@ python tools/project_runner.py validation
 
 输出为记录加上 `current_source_matches` 布尔值。它不打印日志或密钥。忽略的 `local/` 文件不计入源码进度。
 
+总控默认使用 `python tools/project_runner.py validation --summary`，保留退出码、测试计数、源码匹配及各运行结果/哈希，省略逐分钟时间线。完整记录仍在宿主本地，按具体问题读取，避免把大段重复报告塞进模型上下文。
+
 ## 用法示例
 
 1. Codex 在 agent 阶段写入 `orchestration/P2-enemy-task.md`（任务说明），然后写入 `orchestration/local/runner/job-request.json`，之后退出。

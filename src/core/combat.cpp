@@ -575,7 +575,9 @@ double CombatWorld::heal(GameState state, double amount) {
     }
     const double before = hp_;
     hp_ = std::min(stats_.max_hp, hp_ + amount);
-    return std::max(0.0, hp_ - before);
+    const double restored = std::max(0.0, hp_ - before);
+    health_.healing_received += restored;
+    return restored;
 }
 
 bool CombatWorld::update_player_stats(const CombatStats &stats,
@@ -599,7 +601,9 @@ bool CombatWorld::update_player_stats(const CombatStats &stats,
 
     const double added = next.max_hp - stats_.max_hp;
     stats_ = next;
+    const double hp_before = hp_;
     hp_ = std::min(next.max_hp, hp_ + std::max(0.0, added));
+    health_.max_hp_gain += std::max(0.0, hp_ - hp_before);
     config_.weapon_base_damage =
         sanitize(base_weapon_damage_ * weapon_damage_scale, 0.0, 1e9,
                  base_weapon_damage_);
@@ -800,11 +804,24 @@ bool CombatWorld::resolve_contacts(double h, Vec2 player) {
             dist_sq(player, e.position) > reach * reach) {
             continue;
         }
+        const double hp_before = hp_;
         hp_ -= DamageSystem::mitigate(e.contact_damage, stats_.armor);
         e.contact_cooldown = config_.contact_interval;
         invulnerable_ = config_.player_invulnerability;
-        if (hp_ <= 0.0) {
+        const bool lethal = hp_ <= 0.0;
+        if (lethal) {
             hp_ = 0.0;
+        }
+        // Only HP that actually left the player counts (lethal hits are capped).
+        const double lost = hp_before - hp_;
+        if (lost > 0.0) {
+            const std::size_t kind = static_cast<std::size_t>(e.kind);
+            ++health_.contact_hits;
+            ++health_.contact_hits_by_kind[kind];
+            health_.damage_taken += lost;
+            health_.contact_damage_by_kind[kind] += lost;
+        }
+        if (lethal) {
             return true;
         }
     }
