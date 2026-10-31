@@ -72,7 +72,7 @@
         "Demonstrate normal-character 1200-second victory without fixture overrides; retain stationary/death baseline",
         "Record policy limitations, no false claim about human play quality"
       ],
-      "checkpoint": "Three rejected bot/wave experiments archived and removed; stop blind policy tuning. After user-named passive, actual JSON613.466678936/560.300011206 seconds Lost, stationary25.133333836 unchanged. Next damage/healing/XP/card timeline instrumentation, then evidence-based balance; no1200s win."
+      "checkpoint": "HealthMetrics/timeline/parser and diagnostics completed; reviewed168 tests/native2cold, ten real JSON seeds0/10 wins, median614.85s; normal1200s still unverified. Runner cycle5 controller timeout diagnosed, no blind restart. Next approved single pickup-boundary/threat-aware XP approach experiment; desktop ten-seed acceptance required before accepting candidate."
     },
     {
       "id": "P3-01",

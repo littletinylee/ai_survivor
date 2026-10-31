@@ -69,6 +69,14 @@ Godot --headless --path <项目目录> -- --simulate-run --seed 42 --policy kite
 | `iteration_limit` / `stalled` | 是否触达迭代上限 / 是否有卡牌池无可用卡牌 |
 | `frozen_violations` / `terminal_violations` | 升级期间时钟推进 / 终局后时钟或状态变化的次数 |
 
+### 诊断时间线（P2-02f，仅观测）
+
+报告追加 `timeline` 数组（最多 22 个样本：开局、每 60 秒一个、终局；终局与已有样本具有相同游戏时间时以终局覆盖，包括死亡帧不推进时钟的情况）以及三个总数：`hp_offers_seen`（含最大生命值卡的升级选项数）、`hp_cards_selected`（实际选中的最大生命值卡）、`hp_offers_declined_healthy`（出现该卡、选了别的卡且 HP 比例 ≥ 0.6 的次数）。总数只来自真实选项与已接受的选择，不含合成发放。
+
+每个样本含：`time`、`hp`、`maxhp`、`armor`、`level`、`cards`、`kills`、`xp`、`passive_progress`、`passive_procs`，以及累计的 `damage_taken`、`healing_received`、`max_hp_gain`、`contact_hits`，和按敌人种类（顺序：chaser、charger、brute）的 `contact_hits_by_kind`、`contact_damage_by_kind`。采样不使用随机数、不修改游戏对象，也不参与 `trace_hash`。
+
+`tools/simulate.ps1` 校验：样本数 1..22（立即死亡可令起终点共用0秒）、数值有限且非负、时间严格递增、累计量不减、末样本与终局字段一致。`Lost` 报告可以通过这些结构检查，但不能证明 1200 秒的平衡。
+
 **通过条件（退出码 0）**：结束状态为 `Won` 或 `Lost`，`error` 为空，无迭代上限、无 stalled，无效选择和两个违规计数均为 0，且峰值满足 `enemies ≤ 256`、`projectiles ≤ 512`、`orbs ≤ 512`、`weapons ≤ 6`。`Won` 要求生存时间恰为 1200 秒且 HP 大于 0；`Lost` 要求生存时间小于 1200 秒且 HP 为 0。
 
 **`Lost` 是合法结果，不代表通过正常流程获胜。** 脚本和程序都不会强制胜利，也不会修改角色数值或使用作弊参数。

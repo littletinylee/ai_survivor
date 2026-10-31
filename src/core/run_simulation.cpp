@@ -13,6 +13,16 @@
 
 namespace ai_survivors {
 
+void SimulationResult::record_sample(const SimulationSample &sample) {
+    if (!samples.empty() && samples.back().time == sample.time) {
+        samples.back() = sample;
+    } else if (samples.size() < kMaxSamples) {
+        samples.push_back(sample);
+    } else {
+        samples.back() = sample;
+    }
+}
+
 namespace {
 
 constexpr std::uint64_t kFnvOffset = 14695981039346656037ULL;
@@ -114,6 +124,38 @@ int card_priority(const std::string &id, const ProgressionSession &progression,
         }
     }
     return kUnknownCardPriority;
+}
+
+double total_xp_gained(const ProgressionSession &progression) {
+    double xp = progression.levels().xp();
+    for (int level = 1; level < progression.levels().level(); ++level) {
+        xp += LevelUpSystem::threshold_for(level);
+    }
+    return xp;
+}
+
+bool is_max_hp_card(const std::string &id, const ProgressionSession &progression) {
+    const CardDefinition *card = progression.cards().find(id);
+    return card != nullptr && card->kind == CardKind::kAttribute &&
+           card->stat == StatKind::kMaxHp;
+}
+
+SimulationSample take_sample(const GameTimer &timer, const CombatWorld &world,
+                             const ProgressionSession &progression,
+                             int cards_picked) {
+    SimulationSample s;
+    s.time = timer.elapsed_seconds();
+    s.hp = world.hp();
+    s.max_hp = world.max_hp();
+    s.armor = progression.stats().armor;
+    s.level = progression.levels().level();
+    s.cards = cards_picked;
+    s.kills = world.kill_count();
+    s.xp_gained = total_xp_gained(progression);
+    s.passive_progress = progression.passive().progress();
+    s.passive_procs = progression.passive().proc_count();
+    s.health = world.health_metrics();
+    return s;
 }
 
 KiteBot::Input choose_input(SimulationPolicy policy, KiteBot &bot,
@@ -287,6 +329,10 @@ SimulationResult run_simulation(const CharacterDefinition &character,
     states.start_run();
     KiteBot bot;
 
+    r.samples.reserve(SimulationResult::kMaxSamples);
+    r.record_sample(take_sample(timer, world, progression, r.cards_picked));
+    double next_sample_at = SimulationResult::kSampleIntervalSeconds;
+
     // Total passes (frames and upgrade choices) are bounded by kMaxIterations.
     for (std::uint64_t iter = 0;
          iter < SimulationResult::kMaxIterations && !states.is_terminal();
@@ -309,12 +355,25 @@ SimulationResult run_simulation(const CharacterDefinition &character,
                 policy == SimulationPolicy::kKiteAndCollect
                     ? KiteBot::rank_cards(offer, progression, hp_fraction)
                     : offer.card_ids;
+            bool offered_hp = false;
+            for (const std::string &id : offer.card_ids) {
+                offered_hp = offered_hp || is_max_hp_card(id, progression);
+            }
+            if (offered_hp) {
+                ++r.hp_offers_seen;
+            }
             bool applied = false;
             for (const std::string &id : order) {
+                const bool picked_hp = is_max_hp_card(id, progression);
                 const ChooseRunResult c = choose_run_upgrade(
                     states, world, player, progression, offer.generation, id);
                 if (c.result == ChooseResult::kApplied) {
                     ++r.cards_picked;
+                    if (picked_hp) {
+                        ++r.hp_cards_selected;
+                    } else if (offered_hp && hp_fraction >= kInjuredFraction) {
+                        ++r.hp_offers_declined_healthy;
+                    }
                     mix_text(r.trace_hash, id);
                     applied = true;
                     break;
@@ -339,6 +398,13 @@ SimulationResult run_simulation(const CharacterDefinition &character,
             break;
         }
         ++r.frames;
+        if (timer.elapsed_seconds() >= next_sample_at) {
+            if (r.samples.size() < SimulationResult::kMaxSamples - 1) {
+                r.record_sample(
+                    take_sample(timer, world, progression, r.cards_picked));
+            }
+            next_sample_at += SimulationResult::kSampleIntervalSeconds;
+        }
         r.peak_enemies = std::max(r.peak_enemies, world.enemies().size());
         r.peak_projectiles =
             std::max(r.peak_projectiles, world.projectiles().size());
@@ -385,11 +451,11 @@ SimulationResult run_simulation(const CharacterDefinition &character,
     r.max_hp = world.max_hp();
     r.kills = world.kill_count();
     r.final_level = progression.levels().level();
-    double xp = progression.levels().xp();
-    for (int level = 1; level < r.final_level; ++level) {
-        xp += LevelUpSystem::threshold_for(level);
-    }
-    r.xp_gained = xp;
+    r.xp_gained = total_xp_gained(progression);
+    // Terminal state wins when game time did not advance on a lethal frame.
+    const SimulationSample last =
+        take_sample(timer, world, progression, r.cards_picked);
+    r.record_sample(last);
     mix(r.trace_hash, static_cast<std::uint64_t>(r.final_state));
     mix_fixed(r.trace_hash, r.survival_seconds);
     return r;

@@ -233,6 +233,22 @@ def validation_report(root, git):
     return {"record": rec, "current_source_matches": matches}
 
 
+def compact_validation_report(report):
+    """Controller context: retain evidence, omit potentially large timelines."""
+    record = report.get("record")
+    if not isinstance(record, dict):
+        return report
+    compact = {k: v for k, v in record.items() if k != "simulation_reports"}
+    fields = ("requested_seed", "policy", "final_state", "survival_seconds", "trace_hash",
+              "hp", "maxhp", "kills", "level", "hp_offers_seen", "hp_cards_selected",
+              "hp_offers_declined_healthy")
+    compact["simulation_reports"] = {
+        name: {key: value[key] for key in fields if key in value}
+        for name, value in record.get("simulation_reports", {}).items()
+        if isinstance(value, dict)}
+    return {**report, "record": compact}
+
+
 def kill_tree(proc):
     """Kill only the process we started (and its descendants)."""
     if os.name == "nt":
@@ -422,7 +438,8 @@ def main(argv=None):
     r.add_argument("--simulations", action="store_true",
                    help="validate real JSON character seeds1/2 kite and seed2 stationary on the host")
     sub.add_parser("status", help="print saved status JSON")
-    sub.add_parser("validation", help="print saved validation record and whether it matches current source")
+    v = sub.add_parser("validation", help="print saved validation record and whether it matches current source")
+    v.add_argument("--summary", action="store_true", help="omit detailed timelines for controller context")
     sub.add_parser("stop", help="create STOP sentinel (kills nothing)")
     a = ap.parse_args(argv)
     p = paths(ROOT)
@@ -439,7 +456,9 @@ def main(argv=None):
         if not git:
             print("git_not_found", file=sys.stderr)
             return 2
-        print(json.dumps(validation_report(ROOT, git), indent=2, ensure_ascii=False))
+        report = validation_report(ROOT, git)
+        print(json.dumps(compact_validation_report(report) if a.summary else report,
+                         indent=2, ensure_ascii=False))
         return 0
     p["dir"].mkdir(parents=True, exist_ok=True)
     p["stop"].write_text(now(), encoding="utf-8")

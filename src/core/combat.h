@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -297,6 +298,22 @@ private:
 constexpr double kChargerIntroSeconds = 45.0;
 constexpr double kBruteIntroSeconds = 90.0;
 
+// Player-side health accounting for one CombatWorld. Only actual HP changes are
+// counted: damage is capped at the HP that remained, healing is capped at max
+// HP, and a hit that removes no HP (zero damage) is not a hit. Rejected calls
+// count nothing. Read-only: it never affects gameplay, RNG or timers.
+struct HealthMetrics {
+    static constexpr std::size_t kKindCount = 3; // one per EnemyKind
+
+    double damage_taken = 0.0;      // HP actually lost (all sources)
+    double healing_received = 0.0;  // HP actually restored by heal()
+    double max_hp_gain = 0.0;       // HP gained from max HP increases
+    std::uint32_t contact_hits = 0; // contact hits that removed HP
+    // Indexed by static_cast<std::size_t>(EnemyKind).
+    std::array<std::uint32_t, kKindCount> contact_hits_by_kind{};
+    std::array<double, kKindCount> contact_damage_by_kind{};
+};
+
 // Orchestrates one run's combat. It never owns a victory timer: GameTimer stays
 // the only 1200 s clock. The combat clock below only schedules waves and is fed
 // by the same Playing-only deltas.
@@ -380,6 +397,8 @@ public:
     std::uint32_t dropped_kill_events() const { return dropped_kill_events_; }
     double combat_time() const { return combat_time_; }
     const CombatConfig &config() const { return config_; }
+    // Snapshot of this world's health accounting; starts at zero per world.
+    HealthMetrics health_metrics() const { return health_; }
 
 private:
     void substep(double h, Vec2 player, GameStateManager &states, bool &died);
@@ -413,6 +432,7 @@ private:
     double combat_time_ = 0.0;
     std::uint32_t kill_count_ = 0;
     std::uint32_t dropped_kill_events_ = 0;
+    HealthMetrics health_;
 };
 
 } // namespace ai_survivors
